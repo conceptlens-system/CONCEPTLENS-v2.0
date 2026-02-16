@@ -58,18 +58,7 @@ Navigate to the project root (where `main.py` is located).
     pip install -r requirements.txt
     ```
 
-3.  **Environment Variables**:
-    Create a `.env` file in the root directory and add the following:
-    ```env
-    MONGODB_URL=your_mongodb_connection_string
-    DB_NAME=conceptlens
-    SECRET_KEY=your_secret_key_for_jwt
-    ACCESS_TOKEN_EXPIRE_MINUTES=1440
-    ALGORITHM=HS256
-    GEMINI_API_KEY=your_google_gemini_api_key
-    ```
-
-4.  **Run the Backend Server**:
+3.  **Run the Backend Server**:
     ```bash
     uvicorn main:app --reload
     ```
