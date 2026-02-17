@@ -564,15 +564,18 @@ export async function changePassword(data: any, token: string) {
     return res.json();
 }
 
-export async function generateExam(subjectId: string, count: number, difficulty: string, token: string) {
+export async function generateExam(subjectId: string, count: number, difficulty: string, token: string, units?: string[]) {
     const res = await fetch(`${API_URL}/ai-exams/generate`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ subject_id: subjectId, question_count: count, difficulty })
+        body: JSON.stringify({ subject_id: subjectId, question_count: count, difficulty, units })
     });
-    if (!res.ok) throw new Error("Failed to generate exam");
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to generate exam");
+    }
     return res.json();
 }

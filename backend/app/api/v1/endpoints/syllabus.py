@@ -87,7 +87,7 @@ async def parse_syllabus_pdf(file: UploadFile = File(...)):
         response = await model.generate_content_async(prompt)
         response_text = response.text
         
-        print(f"DEBUG: Gemini Response: {response_text}") # DEBUG LOG
+
 
         # Cleanup potential markdown code blocks
         if "```json" in response_text:

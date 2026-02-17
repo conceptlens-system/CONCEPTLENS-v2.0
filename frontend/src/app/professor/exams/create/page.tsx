@@ -16,6 +16,26 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ConfirmModal } from "@/components/ConfirmModal"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Switch } from "@/components/ui/switch"
+import { Shield, CalendarIcon } from "lucide-react"
 
 
 const formatExample = `*** COPY THIS PROMPT TO AI ***
@@ -27,7 +47,7 @@ B: [Option B]
 C: [Option C]
 D: [Option D]
 Correct: [Correct Option Letter or Answer Text]
-Type: [mcq | short_answer | true_false | one_word]
+Type: [mcq | true_false | one_word]
 
 --- EXAMPLES ---
 
@@ -45,11 +65,7 @@ Type: true_false
 
 Q: What is the chemical symbol for Gold?
 Correct: Au
-Type: one_word
-
-Q: Explain the concept of inertia.
-Correct: Objects in motion stay in motion unless acted upon by a force.
-Type: short_answer`
+Type: one_word`
 
 function CreateExamContent() {
     const { data: session } = useSession()
@@ -60,6 +76,8 @@ function CreateExamContent() {
     const [subjects, setSubjects] = useState<any[]>([])
     const [classes, setClasses] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
+    const [openSubject, setOpenSubject] = useState(false)
+    const [openClass, setOpenClass] = useState(false)
     const [isLoaded, setIsLoaded] = useState(false)
     // Exam State
     const [title, setTitle] = useState("")
@@ -75,6 +93,12 @@ function CreateExamContent() {
     const [questions, setQuestions] = useState<any[]>([])
     const [isReviewMode, setIsReviewMode] = useState(false)
 
+    // Confirmation State
+    const [confirmOpen, setConfirmOpen] = useState(false)
+    const [confirmAction, setConfirmAction] = useState<() => Promise<void>>(async () => { })
+    const [confirmTitle, setConfirmTitle] = useState("")
+    const isDiscarding = useRef(false)
+
     // Search States
     const [subjectOpen, setSubjectOpen] = useState(false)
     const [subjectSearch, setSubjectSearch] = useState("")
@@ -88,6 +112,29 @@ function CreateExamContent() {
     const [aiQuestionCount, setAiQuestionCount] = useState([10])
     const [aiDifficulty, setAiDifficulty] = useState("Medium")
     const [aiGenerating, setAiGenerating] = useState(false)
+    const [loadingText, setLoadingText] = useState("Generating Exam...")
+
+    // Dynamic Loading Text Effect
+    useEffect(() => {
+        if (!aiGenerating) return
+
+        const messages = [
+            "Analyzing Syllabus...",
+            "Identifying Key Topics...",
+            "Drafting Questions...",
+            "Reviewing Difficulty...",
+            "Finalizing Exam..."
+        ]
+        let index = 0
+        setLoadingText(messages[0])
+
+        const interval = setInterval(() => {
+            index = (index + 1) % messages.length
+            setLoadingText(messages[index])
+        }, 2500)
+
+        return () => clearInterval(interval)
+    }, [aiGenerating])
 
     const handleAiGenerate = async () => {
         if (!selectedSubject) {
@@ -98,11 +145,13 @@ function CreateExamContent() {
         setAiGenerating(true)
         try {
             const token = (session?.user as any)?.accessToken
+            // Pass selectedUnits to the API
             const generated = await generateExam(
                 selectedSubject,
                 aiQuestionCount[0],
                 aiDifficulty,
-                token
+                token,
+                selectedUnits
             )
 
             // Map generated questions to editor format
@@ -113,7 +162,9 @@ function CreateExamContent() {
                 options: q.options || [],
                 correct_answer: q.correct_answer || "",
                 marks: q.marks || 1,
-                explanation: q.explanation
+                explanation: q.explanation,
+                topic_id: q.topic || "general",
+                unit: q.unit
             }))
 
             setQuestions([...questions, ...mapping])
@@ -232,7 +283,7 @@ function CreateExamContent() {
 
     // Auto-Save Draft
     useEffect(() => {
-        if (!isLoaded || !draftId) return
+        if (!isLoaded || !draftId || isDiscarding.current) return
 
         const currentData = {
             id: draftId,
@@ -269,6 +320,25 @@ function CreateExamContent() {
         setIsCustomDuration(false)
     }
 
+    // Helper for strings
+    const str = (val: any) => String(val)
+
+    const [selectedUnits, setSelectedUnits] = useState<string[]>([])
+
+    // Reset selected units when subject changes
+    useEffect(() => {
+        if (selectedSubject) {
+            const subject = subjects.find(s => s._id === selectedSubject)
+            if (subject?.syllabus) {
+                // Select all units by default
+                const allUnits = subject.syllabus.map((u: any) => str(u.unit))
+                setSelectedUnits(allUnits)
+            } else {
+                setSelectedUnits([])
+            }
+        }
+    }, [selectedSubject, subjects])
+
     // Auto-scroll to new question
     const questionListRef = useRef<HTMLDivElement>(null)
     const [shouldScroll, setShouldScroll] = useState(false)
@@ -276,10 +346,12 @@ function CreateExamContent() {
     useEffect(() => {
         if (shouldScroll && questionListRef.current) {
             const container = questionListRef.current
-            container.scrollTo({
-                top: container.scrollHeight,
-                behavior: "smooth"
-            })
+            setTimeout(() => {
+                container.scrollTo({
+                    top: container.scrollHeight,
+                    behavior: "smooth"
+                })
+            }, 100)
             setShouldScroll(false)
         }
     }, [questions.length, shouldScroll])
@@ -292,7 +364,8 @@ function CreateExamContent() {
             options: ["", "", "", ""],
             correct_answer: "",
             marks: 1,
-            topic_id: "general"
+            topic_id: "general",
+            unit: undefined
         }])
         setShouldScroll(true)
     }
@@ -300,6 +373,31 @@ function CreateExamContent() {
     const updateQuestion = (index: number, field: string, value: any) => {
         const newQ = [...questions]
         newQ[index] = { ...newQ[index], [field]: value }
+        setQuestions(newQ)
+    }
+
+    const handleTopicChange = (index: number, topicId: string) => {
+        const newQ = [...questions]
+        let unit = undefined
+
+        // Find unit for this topic
+        if (selectedSubject) {
+            const subject = subjects.find(s => s._id === selectedSubject)
+            if (subject?.syllabus) {
+                for (const u of subject.syllabus) {
+                    if (u.topics.includes(topicId)) {
+                        unit = u.unit
+                        break
+                    }
+                }
+            }
+        }
+
+        newQ[index] = {
+            ...newQ[index],
+            topic_id: topicId,
+            unit: unit
+        }
         setQuestions(newQ)
     }
 
@@ -485,7 +583,14 @@ function CreateExamContent() {
         setErrors(newErrors)
 
         if (Object.keys(newErrors).length > 0) {
-            toast.error("Please fill in all required fields marked in red.")
+            const errorMessages = []
+            if (newErrors.title) errorMessages.push("Exam Title")
+            if (newErrors.subject) errorMessages.push("Subject")
+            if (newErrors.classes) errorMessages.push("Class Selection")
+            if (newErrors.startTime) errorMessages.push("Start Time")
+            if (newErrors.accessEndTime) errorMessages.push("End Time")
+
+            toast.error(`Please fill in the following required fields: ${errorMessages.join(", ")}`)
 
             if (firstError) {
                 const el = document.getElementById(firstError)
@@ -548,6 +653,25 @@ function CreateExamContent() {
             toast.error("Failed to create exam: " + (e.message || "Unknown error"))
             setLoading(false)
         }
+    }
+
+    const handleCancel = () => {
+        setConfirmTitle("Discard Exam Changes?")
+        setConfirmAction(() => async () => {
+            isDiscarding.current = true
+            // Remove draft from storage
+            const draftsStr = localStorage.getItem("examDrafts")
+            if (draftsStr && draftId) {
+                try {
+                    const drafts = JSON.parse(draftsStr)
+                    const filtered = drafts.filter((d: any) => d.id !== draftId)
+                    localStorage.setItem("examDrafts", JSON.stringify(filtered))
+                    toast.info("Draft discarded")
+                } catch (e) { }
+            }
+            router.push("/professor/exams")
+        })
+        setConfirmOpen(true)
     }
 
     if (loading) return (
@@ -652,462 +776,425 @@ function CreateExamContent() {
     }
 
     return (
-        <div className="max-w-[1600px] mx-auto pb-12 space-y-6">
-            <div className="flex justify-between items-center sticky top-0 z-10 bg-white/50 backdrop-blur-lg py-4 border-b">
-                <div>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.back()}
-                        className="pl-0 hover:bg-transparent hover:text-slate-900 -ml-2 mb-1 text-slate-500"
-                    >
-                        <ChevronLeft className="h-4 w-4 mr-1" /> Back to Exams
-                    </Button>
-                    <h1 className="text-2xl font-bold tracking-tight">Create New Exam</h1>
-                    <p className="text-slate-500">Configure exam details and add questions.</p>
+        <div className="min-h-screen bg-slate-50/50 pb-20">
+            {/* 1. STICKY HEADER */}
+            <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-slate-200 shadow-sm">
+                <div className="max-w-[1400px] mx-auto px-4 h-auto md:h-16 py-2 md:py-0 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4 flex-1 w-full">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => router.back()}
+                            className="text-slate-500 hover:text-slate-900 -ml-2 shrink-0"
+                        >
+                            <ChevronLeft className="h-5 w-5" />
+                        </Button>
+                        <div className="h-6 w-px bg-slate-200 mx-2 shrink-0"></div>
+                        <Input
+                            value={title}
+                            onChange={e => {
+                                setTitle(e.target.value)
+                                if (errors.title) setErrors({ ...errors, title: false })
+                            }}
+                            placeholder="Untitled Exam"
+                            className="border-transparent text-lg md:text-xl font-bold px-0 h-auto focus-visible:ring-0 placeholder:text-slate-300 w-full md:max-w-[400px]"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 justify-end w-full md:w-auto border-t md:border-t-0 pt-2 md:pt-0 mt-2 md:mt-0">
+                        <Button variant="ghost" onClick={handleCancel} className="text-slate-500 flex-1 md:flex-none">Discard</Button>
+                        <div className="h-6 w-px bg-slate-200 mx-2 hidden md:block"></div>
+                        <Button
+                            variant="outline"
+                            className="border-slate-900 text-slate-900 font-medium flex-1 md:flex-none"
+                            onClick={() => {
+                                if (questions.length === 0) {
+                                    toast.error("Add at least one question to review")
+                                    return
+                                }
+                                setIsReviewMode(true)
+                                window.scrollTo({ top: 0, behavior: 'smooth' })
+                            }}
+                        >
+                            <Check className="mr-2 h-4 w-4" /> Review
+                        </Button>
+                        <Button
+                            className="bg-slate-900 text-white min-w-[120px] shadow-lg shadow-slate-200 flex-1 md:flex-none"
+                            onClick={handleSubmit}
+                            disabled={loading}
+                        >
+                            {loading ? "Saving..." : "Create Exam"}
+                        </Button>
+                    </div>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => router.back()}>Cancel</Button>
-                </div>
-            </div>
 
-            <div className="grid grid-cols-12 gap-8 items-start">
-                {/* LEFT SIDEBAR - SETTINGS */}
-                <div className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-6 lg:sticky lg:top-24">
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-base">Exam Configuration</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label>Title</Label>
-                                <Input
-                                    id="field-title"
-                                    placeholder="e.g. Mid-Term Physics"
-                                    value={title}
-                                    onChange={e => {
-                                        setTitle(e.target.value)
-                                        if (errors.title) setErrors({ ...errors, title: false })
-                                    }}
-                                    className={cn(errors.title && "border-red-500 ring-red-500 focus-visible:ring-red-500")}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Subject</Label>
-                                <div className="relative">
-                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500 z-10" />
-                                    <div id="field-subject">
-                                        <Input
-                                            placeholder="Search subject..."
-                                            className={cn("pl-9 h-9", errors.subject && "border-red-500 ring-red-500 focus-visible:ring-red-500")}
-                                            value={subjectSearch}
-                                            onChange={(e) => {
-                                                setSubjectSearch(e.target.value)
-                                                setSubjectListVisible(true)
-                                                if (errors.subject) setErrors({ ...errors, subject: false })
-                                            }}
-                                            onFocus={() => setSubjectListVisible(true)}
-                                            onBlur={() => setTimeout(() => setSubjectListVisible(false), 200)}
-                                        />
-                                    </div>
-                                    {subjectListVisible && (
-                                        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border rounded-md shadow-lg max-h-[200px] overflow-y-auto">
-                                            {filteredSubjects.length === 0 ? (
-                                                <div className="text-xs text-slate-500 text-center py-3">No subjects match.</div>
-                                            ) : (
-                                                filteredSubjects.map((subject) => (
-                                                    <div
-                                                        key={subject._id}
-                                                        className={cn(
-                                                            "relative flex cursor-pointer select-none items-center px-3 py-2 text-sm outline-none transition-colors",
-                                                            selectedSubject === subject._id
-                                                                ? "bg-slate-100 text-slate-900 font-medium"
-                                                                : "hover:bg-slate-50 hover:text-slate-900 text-slate-600"
-                                                        )}
-                                                        onClick={() => {
-                                                            setSelectedSubject(subject._id)
-                                                            setSubjectSearch(subject.name)
-                                                            setSubjectListVisible(false)
-                                                        }}
-                                                    >
-                                                        <Check
-                                                            className={cn(
-                                                                "mr-2 h-4 w-4 text-emerald-600",
-                                                                selectedSubject === subject._id ? "opacity-100" : "opacity-0"
-                                                            )}
-                                                        />
-                                                        {subject.name}
-                                                    </div>
-                                                ))
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label>Duration</Label>
-                                <Select value={isCustomDuration ? "custom" : duration} onValueChange={(val) => {
-                                    if (val === "custom") setIsCustomDuration(true)
-                                    else handleDurationPreset(parseInt(val))
-                                }}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Duration" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {DURATION_PRESETS.map(p => (
-                                            <SelectItem key={p.value} value={p.value.toString()}>{p.label}</SelectItem>
+                {/* 2. HORIZONTAL SETTINGS TOOLBAR - RESPONSIVE */}
+                <div className="border-t border-slate-100 bg-white px-6 py-4 flex flex-wrap items-center gap-6 w-full">
+                    {/* Subject Selector */}
+                    {/* Subject Selector */}
+                    <Popover open={openSubject} onOpenChange={setOpenSubject}>
+                        <PopoverTrigger asChild>
+                            <button className={cn(
+                                "flex items-center gap-2 hover:bg-slate-50 px-2 py-1.5 rounded-md transition-colors w-full md:w-auto justify-between md:justify-start",
+                                !selectedSubject && "text-slate-400",
+                                errors.subject && "text-red-500 bg-red-50"
+                            )}>
+                                <span className="font-semibold text-slate-500 uppercase text-[10px] tracking-wider shrink-0">Subject:</span>
+                                <span className="font-medium truncate max-w-[200px] md:max-w-[150px] text-left">
+                                    {subjects.find(s => s._id === selectedSubject)?.name || "Select Subject..."}
+                                </span>
+                                <ChevronsUpDown className="h-3 w-3 opacity-50 ml-auto md:ml-0" />
+                            </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="start" className="w-[280px] p-0">
+                            <Command>
+                                <CommandInput placeholder="Search subject..." />
+                                <CommandEmpty>No subject found.</CommandEmpty>
+                                <CommandGroup>
+                                    <CommandList>
+                                        {subjects.map(subject => (
+                                            <CommandItem
+                                                key={subject._id}
+                                                value={subject.name}
+                                                onSelect={() => {
+                                                    setSelectedSubject(subject._id)
+                                                    if (errors.subject) setErrors({ ...errors, subject: false })
+                                                    setOpenSubject(false)
+                                                }}
+                                            >
+                                                <Check className={cn("mr-2 h-4 w-4", selectedSubject === subject._id ? "opacity-100" : "opacity-0")} />
+                                                {subject.name}
+                                            </CommandItem>
                                         ))}
-                                        <SelectItem value="custom">Custom</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                {isCustomDuration && (
-                                    <div className="flex gap-2 pt-2">
-                                        <Input
-                                            type="number"
-                                            placeholder="Duration"
-                                            value={durationUnit === 'hour' ? (parseInt(duration) / 60) : duration}
-                                            step={durationUnit === 'hour' ? 0.25 : 15}
-                                            onChange={e => {
-                                                const val = parseFloat(e.target.value)
-                                                if (durationUnit === 'hour') {
-                                                    setDuration((val * 60).toString())
-                                                } else {
-                                                    setDuration(val.toString())
-                                                }
-                                            }}
-                                        />
-                                        <Select value={durationUnit} onValueChange={(val: "min" | "hour") => setDurationUnit(val)}>
-                                            <SelectTrigger className="w-[110px]">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="min">Minutes</SelectItem>
-                                                <SelectItem value="hour">Hours</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                    </CommandList>
+                                </CommandGroup>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
+
+                    <div className="h-8 w-px bg-slate-200 hidden md:block"></div>
+
+                    {/* Class Selector */}
+                    <Popover open={openClass} onOpenChange={setOpenClass}>
+                        <PopoverTrigger asChild>
+                            <button className={cn(
+                                "flex items-center gap-2 hover:bg-slate-50 px-2 py-1.5 rounded-md transition-colors w-full md:w-auto justify-between md:justify-start",
+                                selectedClasses.length === 0 && "text-slate-400",
+                                errors.classes && "text-red-500 bg-red-50"
+                            )}>
+                                <span className="font-semibold text-slate-500 uppercase text-[10px] tracking-wider shrink-0">Class:</span>
+                                <span className="font-medium truncate max-w-[200px] md:max-w-[150px] text-left">
+                                    {selectedClasses.length === 0
+                                        ? "Select Class..."
+                                        : `${selectedClasses.length} Selected`}
+                                </span>
+                                <ChevronsUpDown className="h-3 w-3 opacity-50 ml-auto md:ml-0" />
+                            </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="start" className="w-[280px] p-2">
+                            <div className="space-y-1 max-h-[300px] overflow-y-auto">
+                                {classes.map((cls) => (
+                                    <div
+                                        key={cls._id}
+                                        className="flex items-center space-x-2 p-2 hover:bg-slate-100 rounded-md cursor-pointer"
+                                        onClick={(e) => {
+                                            e.preventDefault()
+                                            toggleClass(cls._id)
+                                        }}
+                                    >
+                                        <Checkbox checked={selectedClasses.includes(cls._id)} id={`cls-${cls._id}`} />
+                                        <label htmlFor={`cls-${cls._id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 pointer-events-none">
+                                            {cls.name} <span className="text-xs text-slate-400 ml-1">({cls.students?.length || 0} students)</span>
+                                        </label>
                                     </div>
-                                )}
+                                ))}
                             </div>
-                        </CardContent>
-                    </Card>
+                        </PopoverContent>
+                    </Popover>
 
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-base">Schedule</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-2">
-                                <Label className="text-xs text-slate-500 uppercase font-semibold">Start Time</Label>
-                                <Input
-                                    id="field-start-time"
-                                    type="datetime-local"
-                                    className={cn(errors.startTime && "border-red-500 ring-red-500 focus-visible:ring-red-500")}
-                                    value={startTime ? new Date(startTime.getTime() - (startTime.getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : ""}
-                                    onChange={(e) => {
-                                        setStartTime(e.target.value ? new Date(e.target.value) : undefined)
-                                        if (errors.startTime) setErrors({ ...errors, startTime: false })
-                                    }}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-xs text-slate-500 uppercase font-semibold">Access Ends</Label>
-                                <Input
-                                    id="field-end-time"
-                                    type="datetime-local"
-                                    className={cn(errors.accessEndTime && "border-red-500 ring-red-500 focus-visible:ring-red-500")}
-                                    value={accessEndTime ? new Date(accessEndTime.getTime() - (accessEndTime.getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : ""}
-                                    onChange={(e) => {
-                                        setAccessEndTime(e.target.value ? new Date(e.target.value) : undefined)
-                                        if (errors.accessEndTime) setErrors({ ...errors, accessEndTime: false })
-                                    }}
-                                />
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <div className="h-8 w-px bg-slate-200 hidden md:block"></div>
 
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-base">Classes</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-3">
-                                {/* Selected Classes Chips */}
-                                <div className="flex flex-wrap gap-2 mb-2">
-                                    {selectedClasses.length === 0 && (
-                                        <span className="text-sm text-slate-400 italic">No classes selected</span>
-                                    )}
-                                    {classes.filter(c => selectedClasses.includes(c._id)).map(cls => (
-                                        <div key={cls._id} className="bg-slate-100 border border-slate-200 text-slate-900 text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1">
-                                            {cls.name}
-                                            <button onClick={() => toggleClass(cls._id)} className="hover:text-red-500 focus:outline-none">
-                                                <X className="h-3 w-3" />
-                                            </button>
-                                        </div>
+                    {/* Start Time */}
+                    <div className={cn("w-full md:w-auto flex flex-col gap-1", errors.startTime && "ring-2 ring-red-500 rounded-md")}>
+                        <Label className="text-[10px] uppercase font-bold text-slate-500">Start Time</Label>
+                        <Input
+                            type="datetime-local"
+                            value={startTime ? new Date(startTime.getTime() - (startTime.getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : ""}
+                            onChange={(e) => {
+                                const date = e.target.value ? new Date(e.target.value) : undefined
+                                setStartTime(date)
+                                if (errors.startTime) setErrors({ ...errors, startTime: false })
+                            }}
+                            className="w-full md:w-[200px] h-9 text-sm"
+                        />
+                    </div>
+
+                    <div className="h-8 w-px bg-slate-200 hidden md:block"></div>
+
+                    {/* End Time */}
+                    <div className={cn("w-full md:w-auto flex flex-col gap-1", errors.accessEndTime && "ring-2 ring-red-500 rounded-md")}>
+                        <Label className="text-[10px] uppercase font-bold text-slate-500">End Time</Label>
+                        <Input
+                            type="datetime-local"
+                            value={accessEndTime ? new Date(accessEndTime.getTime() - (accessEndTime.getTimezoneOffset() * 60000)).toISOString().slice(0, 16) : ""}
+                            onChange={(e) => {
+                                const date = e.target.value ? new Date(e.target.value) : undefined
+                                setAccessEndTime(date)
+                                if (errors.accessEndTime) setErrors({ ...errors, accessEndTime: false })
+                            }}
+                            className="w-full md:w-[200px] h-9 text-sm"
+                        />
+                    </div>
+
+                    <div className="h-px w-full md:h-4 md:w-px bg-slate-200 hidden md:block"></div>
+
+                    {/* Duration */}
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <button className="flex items-center gap-2 hover:bg-slate-50 px-2 py-1.5 rounded-md transition-colors w-full md:w-auto justify-between md:justify-start">
+                                <span className="font-semibold text-slate-500 uppercase text-[10px] tracking-wider shrink-0">Duration:</span>
+                                <span className="font-medium">{duration} min</span>
+                                <ChevronsUpDown className="h-3 w-3 opacity-50 ml-auto md:ml-0" />
+                            </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-4">
+                            <div className="space-y-4">
+                                <h4 className="font-medium leading-none">Exam Duration</h4>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {DURATION_PRESETS.map((preset) => (
+                                        <Button
+                                            key={preset.value}
+                                            variant={duration === preset.value.toString() && !isCustomDuration ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => handleDurationPreset(preset.value)}
+                                            className="h-8"
+                                        >
+                                            {preset.label}
+                                        </Button>
                                     ))}
                                 </div>
-
-                                {/* Search Input & Floating List */}
-                                <div className="relative">
-                                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500 z-10" />
-                                    <div id="field-classes">
+                                <div className="flex items-center gap-4 pt-2 border-t mt-2">
+                                    <div className="flex flex-col gap-1.5 flex-1">
+                                        <label className="text-[10px] uppercase font-bold text-slate-500">Hours</label>
                                         <Input
-                                            placeholder="Search to add classes..."
-                                            className={cn("pl-9 h-9", errors.classes && "border-red-500 ring-red-500 focus-visible:ring-red-500")}
-                                            value={classSearch}
+                                            type="number"
+                                            min={0}
+                                            value={Math.floor(parseInt(duration || "0") / 60)}
                                             onChange={(e) => {
-                                                setClassSearch(e.target.value)
-                                                setClassListVisible(true)
-                                                if (errors.classes) setErrors({ ...errors, classes: false })
+                                                const h = parseInt(e.target.value) || 0
+                                                const m = parseInt(duration || "0") % 60
+                                                const newDuration = (h * 60) + m
+                                                setDuration(newDuration.toString())
+                                                setIsCustomDuration(true)
                                             }}
-                                            onFocus={() => setClassListVisible(true)}
-                                            onBlur={() => setTimeout(() => setClassListVisible(false), 200)}
+                                            className="h-9"
                                         />
                                     </div>
-                                    {classListVisible && (
-                                        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border rounded-md shadow-lg max-h-[200px] overflow-y-auto">
-                                            {filteredClasses.length === 0 ? (
-                                                <div className="text-xs text-slate-500 text-center py-3">No classes match.</div>
-                                            ) : (
-                                                filteredClasses.map((cls) => (
-                                                    <div
-                                                        key={cls._id}
-                                                        className={cn(
-                                                            "relative flex cursor-pointer select-none items-center px-3 py-2 text-sm outline-none transition-colors",
-                                                            selectedClasses.includes(cls._id)
-                                                                ? "bg-blue-50 text-blue-900 font-medium"
-                                                                : "hover:bg-slate-50 hover:text-slate-900 text-slate-600"
-                                                        )}
-                                                        onClick={() => {
-                                                            toggleClass(cls._id)
-                                                            // Keep list open for multi-select convenience
-                                                            // setClassListVisible(false) 
-                                                        }}
-                                                    >
-                                                        <div className={cn(
-                                                            "mr-2 h-4 w-4 border rounded flex items-center justify-center transition-colors",
-                                                            selectedClasses.includes(cls._id) ? "bg-blue-600 border-blue-600" : "border-slate-300"
-                                                        )}>
-                                                            {selectedClasses.includes(cls._id) && <Check className="h-3 w-3 text-white" />}
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <div className="truncate">{cls.name}</div>
-                                                            <div className="text-[10px] text-slate-400 truncate leading-tight">{cls.class_code}</div>
-                                                        </div>
-                                                    </div>
-                                                ))
-                                            )}
-                                        </div>
-                                    )}
+                                    <div className="flex flex-col gap-1.5 flex-1">
+                                        <label className="text-[10px] uppercase font-bold text-slate-500">Minutes</label>
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            max={59}
+                                            value={parseInt(duration || "0") % 60}
+                                            onChange={(e) => {
+                                                const m = parseInt(e.target.value) || 0
+                                                const h = Math.floor(parseInt(duration || "0") / 60)
+                                                const newDuration = (h * 60) + m
+                                                setDuration(newDuration.toString())
+                                                setIsCustomDuration(true)
+                                            }}
+                                            className="h-9"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="text-xs text-slate-500 text-center">
+                                    Total Duration: <span className="font-medium text-slate-900">{duration} minutes</span>
                                 </div>
                             </div>
-                        </CardContent>
-                    </Card>
+                        </PopoverContent>
+                    </Popover>
 
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-base">Anti-Cheat</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            {[
-                                { id: 'fullscreen', label: 'Fullscreen', desc: 'Require fullscreen' },
-                                { id: 'tab_switch', label: 'Tab Monitor', desc: 'Log tab switching' },
-                                { id: 'copy_paste', label: 'No Copy/Paste', desc: 'Disable clipboard' },
-                                { id: 'right_click', label: 'No Right-Click', desc: 'Disable context menu' }
-                            ].map((option) => (
-                                <div
-                                    key={option.id}
-                                    className={`
-                                        flex items-center space-x-3 p-2 rounded-md border cursor-pointer transition-all
-                                        ${(antiCheatConfig as any)[option.id]
-                                            ? 'bg-emerald-50 border-emerald-500'
-                                            : 'bg-white border-slate-200 hover:border-slate-300'}
-                                    `}
-                                    onClick={() => setAntiCheatConfig(prev => ({ ...prev, [option.id]: !(prev as any)[option.id] }))}
-                                >
-                                    <div className={`
-                                        h-4 w-4 rounded border flex items-center justify-center transition-colors
-                                        ${(antiCheatConfig as any)[option.id] ? 'bg-emerald-500 border-emerald-500' : 'border-slate-300 bg-white'}
-                                    `}>
-                                        {(antiCheatConfig as any)[option.id] && <Check className="h-3 w-3 text-white" />}
+                    <div className="h-8 w-px bg-slate-200 hidden md:block"></div>
+
+                    {/* Anti-Cheat */}
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <button className="flex items-center gap-2 hover:bg-slate-50 px-2 py-1.5 rounded-md transition-colors w-full md:w-auto justify-between md:justify-start">
+                                <span className="font-semibold text-slate-500 uppercase text-[10px] tracking-wider shrink-0">Security:</span>
+                                <span className="font-medium text-indigo-600 flex items-center gap-1">
+                                    <Shield className="h-3 w-3" /> Configure
+                                </span>
+                            </button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Anti-Cheat Configuration</DialogTitle>
+                                <DialogDescription>Configure proctoring settings for this exam.</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                {Object.entries(antiCheatConfig).map(([key, enabled]) => (
+                                    <div key={key} className="flex items-center justify-between p-3 rounded-lg border bg-slate-50">
+                                        <div className="space-y-0.5">
+                                            <Label className="text-base capitalize">{key.replace('_', ' ')}</Label>
+                                            <p className="text-xs text-slate-500">
+                                                {key === 'fullscreen' ? "Force fullscreen mode during exam" :
+                                                    key === 'tab_switch' ? "Detect and block tab switching" :
+                                                        key === 'copy_paste' ? "Disable copy/paste functionality" :
+                                                            "Disable right-click context menu"}
+                                            </p>
+                                        </div>
+                                        <Switch
+                                            checked={enabled}
+                                            onCheckedChange={(checked) => setAntiCheatConfig(prev => ({ ...prev, [key]: checked }))}
+                                        />
                                     </div>
-                                    <div>
-                                        <Label className="cursor-pointer font-medium text-slate-900 text-sm block">
-                                            {option.label}
-                                        </Label>
-                                    </div>
-                                </div>
-                            ))}
-                        </CardContent>
-                    </Card>
+                                ))}
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                 </div>
+            </header>
 
-                {/* RIGHT MAIN - QUESTIONS */}
-                <div className="col-span-12 lg:col-span-8 xl:col-span-9">
-                    <Tabs value={aiMode} onValueChange={setAiMode} className="space-y-6">
-                        <TabsList className="bg-white border p-1 rounded-xl w-fit inline-flex h-auto shadow-sm">
-                            <TabsTrigger value="manual" className="px-6 py-3 data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 font-medium transition-all flex items-center justify-center">
-                                <span className="flex items-center gap-2">
-                                    <div className="h-5 w-5 rounded-full border border-current flex items-center justify-center text-[10px]">M</div>
-                                    Manual Editor
-                                </span>
+            {/* 3. MAIN EDITOR AREA (Fluid and Scrollable) */}
+            <main className="flex-1 overflow-hidden flex flex-col max-w-[1000px] mx-auto w-full px-6 pt-6 pb-6">
+                <Tabs defaultValue="manual" value={aiMode} onValueChange={setAiMode} className="flex flex-col h-full w-full">
+
+                    {/* Tabs Header - Pinned at top of main area */}
+                    <div className="flex-none mb-6 flex items-center gap-4">
+                        <TabsList className="grid flex-1 grid-cols-2 gap-4 bg-transparent p-0 h-auto">
+                            <TabsTrigger
+                                value="manual"
+                                className="h-16 rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:border-slate-900 hover:bg-slate-50 transition-all font-medium text-base"
+                            >
+                                Manual Editor
                             </TabsTrigger>
-                            <TabsTrigger value="ai" className="px-6 py-3 data-[state=active]:bg-indigo-50 data-[state=active]:text-indigo-700 font-medium transition-all flex items-center justify-center">
-                                <span className="flex items-center gap-2">
-                                    <Sparkles className="h-4 w-4" />
-                                    AI Auto-Generate
-                                </span>
+                            <TabsTrigger
+                                value="ai"
+                                className="h-16 rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm data-[state=active]:bg-indigo-600 data-[state=active]:text-white data-[state=active]:border-indigo-600 hover:bg-slate-50 transition-all group font-medium text-base"
+                            >
+                                <Sparkles className="h-4 w-4 mr-2 group-data-[state=active]:text-indigo-200 text-indigo-500" />
+                                AI Generator
                             </TabsTrigger>
                         </TabsList>
 
-                        <TabsContent value="manual" className="space-y-6 mt-0">
-                            <div className="flex justify-between items-center bg-white p-4 rounded-xl border shadow-sm">
-                                <div className="flex items-center gap-4">
-                                    <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700">
-                                        {questions.length}
-                                    </div>
-                                    <div>
-                                        <h2 className="text-lg font-bold">Questions</h2>
-                                        <p className="text-sm text-slate-500">Total Marks: {questions.reduce((acc, q) => acc + (q.marks || 0), 0)}</p>
-                                    </div>
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" className="h-16 px-6 gap-2 text-slate-600 border-slate-200 bg-white hover:bg-slate-50 hover:text-slate-900 rounded-xl shadow-sm border">
+                                    <HelpCircle className="h-5 w-5" />
+                                    <span className="hidden sm:inline">AI Prompt Format</span>
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                                <DialogHeader>
+                                    <DialogTitle>AI Generation Prompt Format</DialogTitle>
+                                    <DialogDescription>
+                                        Copy this format and paste it into ChatGPT, Claude, or Gemini to generate questions for import.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="relative mt-4 rounded-md border bg-slate-50 p-4">
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="absolute right-2 top-2 h-8 w-8 text-slate-500 hover:text-slate-900"
+                                        onClick={copyToClipboard}
+                                    >
+                                        <Copy className="h-4 w-4" />
+                                    </Button>
+                                    <pre className="text-sm font-mono whitespace-pre-wrap text-slate-700 select-all p-2">
+                                        {formatExample}
+                                    </pre>
                                 </div>
-                                <div className="flex gap-2">
-                                    <Dialog>
-                                        <DialogTrigger asChild>
-                                            <Button variant="ghost" size="sm" className="gap-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50">
-                                                <Sparkles className="h-4 w-4" /> AI Prompt Guide
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col gap-0 p-0 overflow-hidden">
-                                            <DialogHeader className="p-6 pb-2">
-                                                <DialogTitle className="flex items-center gap-2">
-                                                    <span className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
-                                                        <Sparkles className="h-4 w-4" />
-                                                    </span>
-                                                    AI Generation Prompt
-                                                </DialogTitle>
-                                                <DialogDescription className="text-base">
-                                                    Copy this formatting prompt and paste it into ChatGPT, Claude, or Gemini to generate questions instantly.
-                                                </DialogDescription>
-                                            </DialogHeader>
-
-                                            <div className="flex-1 overflow-y-auto p-6 pt-2">
-                                                <div className="relative group">
-                                                    <div className="absolute right-2 top-2 opacity-100 transition-opacity">
-                                                        <Button
-                                                            size="sm"
-                                                            variant="secondary"
-                                                            className="h-8 bg-white/10 text-white hover:bg-white/20 border-white/20 shadow-none backdrop-blur-sm"
-                                                            onClick={copyToClipboard}
-                                                        >
-                                                            <Copy className="mr-2 h-3.5 w-3.5" /> Copy Prompt
-                                                        </Button>
-                                                    </div>
-                                                    <div className="bg-slate-950 text-slate-300 p-6 rounded-xl font-mono text-sm leading-relaxed whitespace-pre-wrap border border-slate-800 shadow-inner">
-                                                        {formatExample}
-                                                    </div>
-                                                </div>
-
-                                                <div className="mt-4 flex gap-4 text-sm text-slate-500">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                                        Supports MCQ, True/False, Short Answer
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                                                        Auto-detects correct answers
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="p-4 border-t bg-slate-50 flex justify-end gap-2">
-                                                <Button onClick={copyToClipboard} className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                                                    <Copy className="mr-2 h-4 w-4" /> Copy Prompt to Clipboard
-                                                </Button>
-                                            </div>
-                                        </DialogContent>
-                                    </Dialog>
+                                <div className="flex justify-end gap-2 mt-4">
+                                    <Button onClick={copyToClipboard} className="gap-2">
+                                        <Copy className="h-4 w-4" /> Copy to Clipboard
+                                    </Button>
                                 </div>
-                            </div>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
 
-                            {/* Question List */}
-                            {/* Question List */}
-                            <div
-                                className="space-y-4 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent"
-                                ref={questionListRef}
-                            >
-                                {questions.length === 0 ? (
-                                    <div className="text-center py-20 bg-slate-50/50 rounded-2xl border-2 border-dashed border-slate-200">
-                                        <div className="h-16 w-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
-                                            <HelpCircle className="h-8 w-8" />
-                                        </div>
-                                        <h3 className="text-lg font-medium text-slate-900">No questions added yet</h3>
-                                        <p className="text-slate-500 max-w-sm mx-auto mb-6">Start by adding questions manually, importing a text file, or use AI generation.</p>
-                                        <div className="flex justify-center gap-3">
-                                            <Button onClick={() => setAiMode("ai")} variant="outline" className="gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50">
-                                                <Sparkles className="h-4 w-4" /> Try AI Generator
-                                            </Button>
-                                            <div className="relative">
-                                                <input
-                                                    type="file"
-                                                    accept=".txt"
-                                                    onChange={handleFileUpload}
-                                                    className="absolute inset-0 opacity-0 cursor-pointer"
-                                                />
-                                                <Button variant="outline" className="gap-2">
-                                                    <Upload className="h-4 w-4" /> Import .txt
-                                                </Button>
-                                            </div>
-                                            <Button onClick={addQuestion} className="gap-2">
-                                                <Plus className="h-4 w-4" /> Add Manually
+                    <TabsContent value="manual" className="flex-1 overflow-hidden flex flex-col mt-0 h-full">
+                        {/* SCROLLABLE Question List */}
+                        <div ref={questionListRef} className="flex-1 overflow-y-auto pb-4 space-y-6">
+                            {questions.length === 0 ? (
+                                <div className="text-center py-24 bg-white rounded-3xl border-2 border-dashed border-slate-200">
+                                    <div className="h-20 w-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-300">
+                                        <Plus className="h-10 w-10" />
+                                    </div>
+                                    <h3 className="text-xl font-semibold text-slate-900 mb-2">Start Creating</h3>
+                                    <p className="text-slate-500 max-w-sm mx-auto mb-8">
+                                        Build your exam by adding questions manually, importing from a file, or using our AI generator.
+                                    </p>
+                                    <div className="flex flex-col md:flex-row justify-center gap-4 w-full md:w-auto">
+                                        <Button onClick={() => setAiMode("ai")} variant="outline" className="h-12 px-6 gap-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 w-full md:w-auto">
+                                            <Sparkles className="h-5 w-5" /> Use AI Generator
+                                        </Button>
+                                        <div className="relative w-full md:w-auto">
+                                            <input
+                                                type="file"
+                                                accept=".txt"
+                                                onChange={handleFileUpload}
+                                                className="absolute inset-0 opacity-0 cursor-pointer w-full"
+                                            />
+                                            <Button variant="outline" className="h-12 px-6 gap-2 w-full md:w-auto">
+                                                <Upload className="h-5 w-5" /> Import File
                                             </Button>
                                         </div>
+
+                                        <Button onClick={addQuestion} className="h-12 px-6 gap-2 bg-slate-900 hover:bg-slate-800 shadow-xl shadow-slate-200 w-full md:w-auto">
+                                            <Plus className="h-5 w-5" /> Add Question
+                                        </Button>
                                     </div>
-                                ) : (
-                                    questions.map((q, idx) => (
-                                        <Card key={idx} id={`question-card-${idx}`} className={cn(
-                                            "group transition-all duration-200 border-slate-200 shadow-sm hover:shadow-md",
-                                        )}>
-                                            <CardHeader className="pb-3 pt-4 px-4">
-                                                <div className="flex flex-col gap-4">
-                                                    <div className="flex justify-between items-start gap-4">
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="h-7 w-7 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-sm border">
-                                                                {idx + 1}
+                                </div>
+                            ) : (
+                                questions.map((q, idx) => (
+                                    <Card key={idx} id={`question-card-${idx}`} className="group transition-all duration-300 border-slate-200 shadow-sm hover:shadow-lg hover:border-indigo-200 bg-white">
+                                        <CardHeader className="pb-3 pt-5 px-6">
+                                            <div className="flex flex-col gap-4">
+                                                <div className="flex justify-between items-start gap-4">
+                                                    <div className="flex items-center gap-4 w-full">
+                                                        <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-sm border">
+                                                            {idx + 1}
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-2 items-center flex-1">
+                                                            <div className="flex items-center relative group/marks">
+                                                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-medium pointer-events-none">PTS</span>
+                                                                <input
+                                                                    type="number"
+                                                                    className="h-8 w-16 text-sm bg-slate-50 border-slate-200 rounded pl-3 pr-6 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium text-slate-700"
+                                                                    value={q.marks}
+                                                                    onChange={(e) => updateQuestion(idx, 'marks', parseInt(e.target.value) || 1)}
+                                                                    min={1}
+                                                                />
                                                             </div>
-                                                            <div className="flex flex-wrap gap-2 items-center">
-                                                                <select
-                                                                    className="h-7 text-xs bg-slate-50 border-slate-200 rounded px-2 outline-none focus:border-indigo-500 transition-colors"
-                                                                    value={q.type}
-                                                                    onChange={(e) => updateQuestion(idx, 'type', e.target.value)}
-                                                                >
-                                                                    <option value="mcq">Multiple Choice</option>
-                                                                    <option value="short_answer">Short Answer</option>
-                                                                    <option value="true_false">True / False</option>
-                                                                    <option value="one_word">One Word</option>
-                                                                </select>
 
-                                                                <div className="flex items-center relative">
-                                                                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-medium pointer-events-none">PTS</span>
-                                                                    <input
-                                                                        type="number"
-                                                                        className="h-7 w-16 text-xs bg-slate-50 border-slate-200 rounded pl-2 pr-6 outline-none focus:border-indigo-500 transition-colors"
-                                                                        value={q.marks}
-                                                                        onChange={(e) => updateQuestion(idx, 'marks', parseInt(e.target.value) || 1)}
-                                                                        min={1}
-                                                                    />
-                                                                </div>
+                                                            <select
+                                                                className="h-8 text-sm bg-slate-50 border-slate-200 rounded px-2 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium text-slate-700 cursor-pointer hover:bg-slate-100"
+                                                                value={q.type}
+                                                                onChange={(e) => updateQuestion(idx, 'type', e.target.value)}
+                                                            >
+                                                                <option value="mcq">Multiple Choice</option>
+                                                                <option value="true_false">True / False</option>
+                                                                <option value="one_word">One Word</option>
+                                                            </select>
 
-                                                                {/* Topic Selector */}
-                                                                <div className="w-[180px]">
+                                                            {/* Topic Selector */}
+                                                            <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[200px]">
+                                                                {q.unit && (
+                                                                    <div className="h-8 px-3 rounded bg-indigo-50 border border-indigo-100 flex items-center justify-center text-[11px] font-bold text-indigo-600 uppercase tracking-wide whitespace-nowrap shadow-sm">
+                                                                        Unit {q.unit}
+                                                                    </div>
+                                                                )}
+                                                                <div className="flex-1">
                                                                     {subjects.find(s => s._id === selectedSubject)?.syllabus?.length > 0 ? (
-                                                                        <Select value={q.topic_id} onValueChange={(val) => updateQuestion(idx, 'topic_id', val)}>
-                                                                            <SelectTrigger className="h-7 text-xs bg-white border-slate-200">
+                                                                        <Select value={q.topic_id} onValueChange={(val) => handleTopicChange(idx, val)}>
+                                                                            <SelectTrigger className="h-8 text-xs bg-white border-slate-200 w-full hover:border-indigo-300 transition-colors">
                                                                                 <SelectValue placeholder="Select Topic" />
                                                                             </SelectTrigger>
                                                                             <SelectContent className="max-h-[300px]">
                                                                                 {subjects.find(s => s._id === selectedSubject)?.syllabus.map((unit: any, uIdx: number) => (
                                                                                     <SelectGroup key={uIdx}>
-                                                                                        <SelectLabel className="pl-2 py-1 text-xs font-bold text-slate-900 bg-slate-100 sticky top-0">
+                                                                                        <SelectLabel className="pl-2 py-1 text-xs font-bold text-slate-900 bg-slate-100 sticky top-0 border-b">
                                                                                             Unit {unit.unit}: {unit.title || `Unit ${unit.unit}`}
                                                                                         </SelectLabel>
                                                                                         {unit.topics.map((topic: string, tIdx: number) => (
@@ -1125,145 +1212,149 @@ function CreateExamContent() {
                                                                         </Select>
                                                                     ) : (
                                                                         <Input
-                                                                            placeholder={selectedSubject ? "Topic..." : "Subject first..."}
+                                                                            placeholder={selectedSubject ? "Topic..." : "Select Subject first..."}
                                                                             value={q.topic_id}
                                                                             onChange={e => updateQuestion(idx, 'topic_id', e.target.value)}
-                                                                            className="h-7 text-xs bg-white"
+                                                                            className="h-8 text-xs bg-white w-full"
+                                                                            disabled={!selectedSubject}
                                                                         />
                                                                     )}
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            onClick={() => {
-                                                                const newQ = [...questions];
-                                                                newQ.splice(idx, 1);
-                                                                setQuestions(newQ);
-                                                            }}
-                                                            className="h-7 w-7 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
                                                     </div>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => {
+                                                            const newQ = [...questions];
+                                                            newQ.splice(idx, 1);
+                                                            setQuestions(newQ);
+                                                        }}
+                                                        className="h-8 w-8 p-0 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
                                                 </div>
-                                            </CardHeader>
-                                            <CardContent className="px-4 pb-4 space-y-3">
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="px-6 pb-6 space-y-4">
+                                            <div className="relative">
                                                 <Textarea
-                                                    placeholder="Enter question text..."
-                                                    className="resize-none min-h-[60px] text-base border-slate-200 focus-visible:ring-indigo-500"
+                                                    placeholder="Enter question text here..."
+                                                    className="resize-none min-h-[80px] text-base border-slate-200 focus-visible:ring-indigo-500 focus-visible:border-indigo-500 bg-slate-50/50 focus:bg-white transition-all p-3"
                                                     value={q.text}
                                                     onChange={(e) => updateQuestion(idx, 'text', e.target.value)}
                                                 />
-                                                {/* Render Options based on Type */}
-                                                {renderQuestionOptions(q, idx)}
-                                            </CardContent>
-                                        </Card>
-                                    )))}
-                            </div>
+                                            </div>
+                                            {renderQuestionOptions(q, idx)}
+                                        </CardContent>
+                                    </Card>
+                                ))
+                            )}
+                        </div>
 
-                            <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t bg-white z-10 w-full">
+                        {/* Floating Add Button for Manual Mode when questions exist */}
+                        {/* Sticky Footer Actions for Manual Mode */}
+                        <div className="sticky bottom-0 z-10 bg-white/80 backdrop-blur-md border-t border-slate-200 p-4 -mx-6 mt-auto">
+                            <div className="flex items-center justify-between gap-4 max-w-[1000px] mx-auto">
                                 <Button
-                                    variant="outline"
-                                    className="py-6 border-dashed border-2 border-slate-300 hover:border-indigo-500 hover:bg-slate-50 text-slate-500 hover:text-indigo-600 transition-all"
                                     onClick={addQuestion}
-                                >
-                                    <Plus className="mr-2 h-5 w-5" /> Add New Question
-                                </Button>
-                                <Button
                                     variant="outline"
-                                    className="py-6 border-2 border-slate-900 text-slate-900 hover:bg-slate-100 transition-all font-bold text-lg"
-                                    onClick={() => {
-                                        if (questions.length === 0) {
-                                            toast.error("Add at least one question to review")
-                                            return
-                                        }
-                                        setIsReviewMode(true)
-                                        window.scrollTo({ top: 0, behavior: 'smooth' })
-                                    }}
+                                    className="flex-1 h-12 rounded-xl border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900 gap-2 shadow-sm"
                                 >
-                                    <Check className="mr-2 h-5 w-5" /> Review Exam
+                                    <Plus className="h-5 w-5" /> Add New Question
                                 </Button>
                                 <Button
-                                    className="py-6 bg-slate-900 text-white hover:bg-slate-800 transition-all font-bold text-lg shadow-lg"
+                                    onClick={() => setIsReviewMode(true)}
+                                    variant="secondary"
+                                    className="flex-1 h-12 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 gap-2 shadow-sm"
+                                    disabled={questions.length === 0}
+                                >
+                                    <Check className="h-5 w-5" /> Review
+                                </Button>
+                                <Button
                                     onClick={handleSubmit}
-                                    disabled={loading}
+                                    className="flex-1 h-12 rounded-xl bg-slate-900 text-white hover:bg-slate-800 gap-2 shadow-lg shadow-slate-200"
+                                    disabled={loading || questions.length === 0}
                                 >
                                     {loading ? "Creating..." : "Create Exam"}
                                 </Button>
                             </div>
+                        </div>
+                    </TabsContent>
 
-
-                        </TabsContent>
-
-                        <TabsContent value="ai" className="mt-0">
-                            <Card className="border-indigo-100 shadow-sm overflow-hidden">
-                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
-                                <CardHeader className="bg-gradient-to-b from-indigo-50/50 to-white pb-6 pt-8">
-                                    <div className="mx-auto h-16 w-16 bg-white rounded-2xl shadow-lg flex items-center justify-center mb-4 text-indigo-600 border border-indigo-100">
-                                        <Sparkles className="h-8 w-8" />
-                                    </div>
-                                    <CardTitle className="text-center text-xl text-slate-900">AI Exam Generator</CardTitle>
-                                    <CardDescription className="text-center max-w-md mx-auto">
-                                        Automatically generate extensive exams based on your syllabus. Select your preferences and let our AI do the heavy lifting.
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="p-8 max-w-2xl mx-auto space-y-8">
-                                    <div className="space-y-4">
-                                        <Label className="text-base">Subject</Label>
-                                        <div className="p-4 rounded-xl border bg-slate-50 flex items-center justify-between">
-                                            {selectedSubject ? (
-                                                <div className="flex items-center gap-3">
-                                                    <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
-                                                        <Check className="h-5 w-5" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-medium text-slate-900">
-                                                            {subjects.find(s => s._id === selectedSubject)?.name || "Unknown Subject"}
-                                                        </div>
-                                                        <div className="text-xs text-slate-500">Syllabus Loaded</div>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center gap-3 opacity-50">
-                                                    <div className="h-10 w-10 rounded-full bg-slate-200"></div>
-                                                    <div>
-                                                        <div className="font-medium text-slate-900">No Subject Selected</div>
-                                                        <div className="text-xs text-slate-500">Select a subject on the left</div>
-                                                    </div>
-                                                </div>
-                                            )}
-                                            {!selectedSubject && (
-                                                <Button variant="outline" size="sm" onClick={() => {
-                                                    const el = document.getElementById("field-subject")
-                                                    if (el) el.scrollIntoView({ behavior: 'smooth' })
-                                                }}>
-                                                    Select Subject
-                                                </Button>
-                                            )}
+                    {/* Keep AI Generator Content Here (Using existing structure but cleaner) */}
+                    <TabsContent value="ai" className="mt-0">
+                        {/* ... Existing AI Content Logic ... */}
+                        <Card className="border-indigo-100 shadow-md">
+                            {/* ... Content ... */}
+                            <CardContent className="p-8 max-w-2xl mx-auto space-y-8">
+                                {/* ... Reuse same AI form inputs ... */}
+                                <div className="space-y-4">
+                                    <h2 className="text-2xl font-bold text-center mb-8">AI Exam Generator</h2>
+                                    {/* ... (Subject is now global in toolbar, maybe just show read-only confirmation or allow override?) */}
+                                    {/* For simplicity, we use the global selectedSubject */}
+                                    <div className="p-4 rounded-xl border bg-slate-50 flex items-center gap-4">
+                                        <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
+                                            <Sparkles className="h-6 w-6" />
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-slate-900">
+                                                Generating for: <span className="text-indigo-600">{subjects.find(s => s._id === selectedSubject)?.name || "Select a Subject via Toolbar"}</span>
+                                            </p>
+                                            <p className="text-xs text-slate-500">
+                                                Ensure you have selected the correct subject in the top toolbar.
+                                            </p>
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-3">
-                                            <Label>Question Count</Label>
-                                            <div className="flex items-center gap-4">
-                                                <Input
-                                                    type="number"
-                                                    value={aiQuestionCount[0]}
-                                                    onChange={e => setAiQuestionCount([parseInt(e.target.value) || 0])}
-                                                    min={1}
-                                                    max={100}
-                                                    className="h-12 text-lg font-medium text-center"
-                                                />
+                                        {/* Unit Selection Reuse */}
+                                        {selectedSubject && subjects.find(s => s._id === selectedSubject)?.syllabus?.length > 0 && (
+                                            <div className="md:col-span-2 space-y-3">
+                                                <Label>Select Units to Focus On</Label>
+                                                <div className="p-4 rounded-xl border bg-white grid grid-cols-2 gap-3 max-h-[200px] overflow-y-auto">
+                                                    {subjects.find(s => s._id === selectedSubject)?.syllabus.map((unit: any, idx: number) => {
+                                                        const uId = str(unit.unit)
+                                                        const isSelected = selectedUnits.includes(uId)
+                                                        return (
+                                                            <div key={idx} className="flex items-start gap-2">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    id={`unit-ai-${uId}`}
+                                                                    checked={isSelected}
+                                                                    onChange={(e) => {
+                                                                        if (e.target.checked) setSelectedUnits([...selectedUnits, uId])
+                                                                        else setSelectedUnits(selectedUnits.filter(u => u !== uId))
+                                                                    }}
+                                                                    className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                                                />
+                                                                <label htmlFor={`unit-ai-${uId}`} className="text-sm cursor-pointer select-none">
+                                                                    <span className="font-semibold text-slate-700">Unit {unit.unit}</span>
+                                                                    <span className="text-xs text-slate-500 block truncate">{unit.title}</span>
+                                                                </label>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
                                             </div>
-                                            <p className="text-xs text-slate-500">Recommended: 10-50 questions</p>
+                                        )}
+
+                                        <div className="space-y-3">
+                                            <Label>Number of Questions</Label>
+                                            <Input
+                                                type="number"
+                                                value={aiQuestionCount[0]}
+                                                onChange={e => setAiQuestionCount([parseInt(e.target.value) || 0])}
+                                                min={1} max={100}
+                                                className="h-11"
+                                            />
                                         </div>
                                         <div className="space-y-3">
-                                            <Label>Difficulty</Label>
+                                            <Label>Difficulty Level</Label>
                                             <Select value={aiDifficulty} onValueChange={setAiDifficulty}>
-                                                <SelectTrigger className="h-12">
+                                                <SelectTrigger className="h-11">
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -1275,35 +1366,38 @@ function CreateExamContent() {
                                         </div>
                                     </div>
 
-                                    <div className="pt-4">
-                                        <Button
-                                            className="w-full h-14 text-lg gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-lg shadow-indigo-200"
-                                            onClick={handleAiGenerate}
-                                            disabled={aiGenerating || !selectedSubject}
-                                        >
-                                            {aiGenerating ? (
-                                                <>
-                                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                                    Generating Exam...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Sparkles className="h-5 w-5" />
-                                                    Generate {aiQuestionCount[0]} Questions
-                                                </>
-                                            )}
-                                        </Button>
-                                        <div className="text-center mt-3 text-xs text-slate-400">
-                                            AI-generated content should be reviewed for accuracy.
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                    </Tabs >
-                </div >
-            </div >
-        </div >
+                                    <Button
+                                        className="w-full h-14 text-lg gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-xl shadow-indigo-100 transition-all duration-500 mt-4"
+                                        onClick={handleAiGenerate}
+                                        disabled={aiGenerating || !selectedSubject}
+                                    >
+                                        {aiGenerating ? (
+                                            <>
+                                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                                                <span className="animate-pulse">{loadingText}</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Sparkles className="h-5 w-5" />
+                                                Generate {aiQuestionCount[0]} Questions
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+                </Tabs>
+            </main>
+            <ConfirmModal
+                open={confirmOpen}
+                onOpenChange={setConfirmOpen}
+                title={confirmTitle}
+                description="This will discard all unsaved changes and delete this draft. This action cannot be undone."
+                onConfirm={confirmAction}
+                variant="destructive"
+            />
+        </div>
     )
 }
 

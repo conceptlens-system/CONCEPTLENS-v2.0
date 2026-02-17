@@ -136,10 +136,14 @@ export default function ExamsPage() {
     const isLoadingState = loading
 
     const handleDiscardDraft = (id: string) => {
-        const newDrafts = drafts.filter(d => d.id !== id)
-        setDrafts(newDrafts)
-        localStorage.setItem("examDrafts", JSON.stringify(newDrafts))
-        toast.info("Draft discarded")
+        setConfirmTitle("Delete Draft?")
+        setConfirmAction(() => async () => {
+            const newDrafts = drafts.filter(d => d.id !== id)
+            setDrafts(newDrafts)
+            localStorage.setItem("examDrafts", JSON.stringify(newDrafts))
+            toast.info("Draft discarded")
+        })
+        setConfirmOpen(true)
     }
 
     const handleCreateExamClick = (e: React.MouseEvent) => {

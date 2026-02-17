@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 export default function MisconceptionsPage() {
     const { data: session } = useSession()
@@ -208,7 +209,7 @@ export default function MisconceptionsPage() {
     // --- VIEW: Exam Selection ---
     if (!selectedExamId) {
         return (
-            <div className="max-w-5xl mx-auto p-8 min-h-screen">
+            <div className="max-w-5xl mx-auto p-4 md:p-8 min-h-screen">
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
                         <BrainCircuit className="h-8 w-8 text-indigo-600" />
@@ -222,49 +223,53 @@ export default function MisconceptionsPage() {
                         {/* Title already displayed above */}
                     </div>
 
-                    <div className="flex items-center gap-2 w-full md:w-auto">
+                    <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 w-full md:w-auto">
                         {/* Filters */}
-                        <div className="flex items-center gap-2 bg-white p-1 rounded-md border shadow-sm">
-                            <Filter className="h-4 w-4 text-slate-400 ml-2" />
-                            <Select value={subjectFilter} onValueChange={setSubjectFilter}>
-                                <SelectTrigger className="w-[140px] border-0 focus:ring-0 h-8 text-xs">
-                                    <SelectValue placeholder="Subject" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All Subjects</SelectItem>
-                                    {Object.entries(subjects).map(([id, name]) => (
-                                        <SelectItem key={id} value={id}>{name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <div className="h-4 w-[1px] bg-slate-200" />
-                            <div className="flex items-center px-2">
-                                <Search className="h-3 w-3 text-slate-400 mr-2" />
+                        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 bg-white p-2 md:p-1 rounded-md border shadow-sm w-full md:w-auto">
+                            <div className="flex items-center gap-2 mb-2 md:mb-0">
+                                <Filter className="h-4 w-4 text-slate-400 ml-2" />
+                                <Select value={subjectFilter} onValueChange={setSubjectFilter}>
+                                    <SelectTrigger className="w-full md:w-[140px] border-0 focus:ring-0 h-8 text-xs">
+                                        <SelectValue placeholder="Subject" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Subjects</SelectItem>
+                                        {Object.entries(subjects).map(([id, name]) => (
+                                            <SelectItem key={id} value={id}>{name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="h-px w-full md:h-4 md:w-[1px] bg-slate-200 my-1 md:my-0" />
+
+                            <div className="flex items-center px-2 w-full md:w-auto">
+                                <Search className="h-3 w-3 text-slate-400 mr-2 shrink-0" />
                                 <Input
                                     placeholder="Search exams..."
-                                    className="border-0 focus-visible:ring-0 h-8 w-[180px] text-xs p-0"
+                                    className="border-0 focus-visible:ring-0 h-8 w-full md:w-[180px] text-xs p-0"
                                     value={examSearch}
                                     onChange={(e) => setExamSearch(e.target.value)}
                                 />
+                                {(subjectFilter !== "all" || examSearch) && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-6 p-0 ml-2 rounded-full hover:bg-slate-100 shrink-0"
+                                        onClick={() => { setSubjectFilter("all"); setExamSearch("") }}
+                                    >
+                                        <X className="h-3 w-3 text-slate-500" />
+                                    </Button>
+                                )}
                             </div>
-                            {(subjectFilter !== "all" || examSearch) && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 mr-1 rounded-full hover:bg-slate-100"
-                                    onClick={() => { setSubjectFilter("all"); setExamSearch("") }}
-                                >
-                                    <X className="h-3 w-3 text-slate-500" />
-                                </Button>
-                            )}
                         </div>
 
-                        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+                        <div className="flex items-center justify-center gap-1 bg-slate-100 p-1 rounded-lg w-full md:w-auto">
                             <Button
                                 variant={viewMode === "grid" ? "secondary" : "ghost"}
                                 size="sm"
                                 onClick={() => setViewMode("grid")}
-                                className={viewMode === "grid" ? "bg-white shadow-sm" : "hover:bg-slate-200"}
+                                className={cn("flex-1 md:flex-none", viewMode === "grid" ? "bg-white shadow-sm" : "hover:bg-slate-200")}
                             >
                                 <LayoutGrid className="h-4 w-4 mr-2" /> Grid
                             </Button>
@@ -272,7 +277,7 @@ export default function MisconceptionsPage() {
                                 variant={viewMode === "list" ? "secondary" : "ghost"}
                                 size="sm"
                                 onClick={() => setViewMode("list")}
-                                className={viewMode === "list" ? "bg-white shadow-sm" : "hover:bg-slate-200"}
+                                className={cn("flex-1 md:flex-none", viewMode === "list" ? "bg-white shadow-sm" : "hover:bg-slate-200")}
                             >
                                 <ListIcon className="h-4 w-4 mr-2" /> List
                             </Button>
@@ -476,7 +481,7 @@ export default function MisconceptionsPage() {
 
     // --- VIEW: Dashboard (Selected Exam) ---
     return (
-        <div className="space-y-8 max-w-7xl mx-auto p-6 min-h-screen bg-slate-50/50">
+        <div className="space-y-8 max-w-7xl mx-auto p-4 md:p-6 min-h-screen bg-slate-50/50">
             {/* Header Section */}
             <div className="flex flex-col">
                 <div className="flex items-center gap-2 mb-2">
@@ -696,7 +701,7 @@ export default function MisconceptionsPage() {
                                             </h3>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <div className="text-right hidden md:block mr-2">
+                                            <div className="text-right md:block mr-2 flex justify-between md:justify-end items-center w-full md:w-auto gap-4">
                                                 <div className="text-xs text-slate-500 font-medium uppercase">Confidence</div>
                                                 <div className={`text-lg font-bold ${Number(confidencePercent) > 70 ? 'text-green-600' : 'text-amber-500'}`}>
                                                     {confidencePercent}%

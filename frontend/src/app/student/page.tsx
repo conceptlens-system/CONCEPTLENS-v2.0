@@ -62,7 +62,7 @@ export default function StudentHomePage() {
         <PageTransition className="space-y-8">
             <div>
                 <h1 className="text-3xl font-bold text-slate-900">Student Portal</h1>
-                <p className="text-slate-500 mt-2">Welcome back! Check your upcoming exam schedule.</p>
+                <p className="text-slate-500 mt-2">Welcome back, {session?.user?.name}! Check your upcoming exam schedule.</p>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

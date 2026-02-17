@@ -102,7 +102,7 @@ export default function ProfessorDashboard() {
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400">
-                        Welcome back, Professor
+                        Welcome back, {session?.user?.name}
                     </h1>
                     <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">
                         Here's what's happening in your classrooms today.
