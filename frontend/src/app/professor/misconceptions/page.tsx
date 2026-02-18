@@ -8,7 +8,7 @@ import { useEffect, useState, useMemo } from "react"
 import { fetchGroupedMisconceptions, fetchExams, fetchAssessmentSummaries, fetchExamStudents, fetchSubjects, updateMisconceptionStatus } from "@/lib/api"
 import { useSession } from "next-auth/react"
 import { Input } from "@/components/ui/input"
-import { ChevronRight, AlertTriangle, Users, BookOpen, Calendar, HelpCircle, BrainCircuit, Sparkles, TrendingUp, Filter, Search, ArrowRight, LayoutGrid, List as ListIcon, BarChart3, Eye, FileText, Loader2, X, CheckCircle, ClipboardCheck, Stethoscope, Microscope, Quote, GraduationCap, Lightbulb, XCircle } from "lucide-react"
+import { ChevronRight, AlertTriangle, Users, BookOpen, Calendar, HelpCircle, BrainCircuit, Sparkles, TrendingUp, Filter, Search, ArrowRight, LayoutGrid, List as ListIcon, BarChart3, Eye, FileText, Loader2, X, CheckCircle, ClipboardCheck, Stethoscope, Microscope, Quote, GraduationCap, Lightbulb, XCircle, Share2, Download, HeartPulse } from "lucide-react"
 import { format } from "date-fns"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 import { motion, AnimatePresence } from "framer-motion"
@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { StatCard } from "@/components/dashboard/StatCard"
 
 export default function MisconceptionsPage() {
     const { data: session } = useSession()
@@ -78,7 +79,7 @@ export default function MisconceptionsPage() {
         const matchesSubject = subjectFilter === "all" || exam.subject_id === subjectFilter
         const matchesSearch = !examSearch || exam.title.toLowerCase().includes(examSearch.toLowerCase())
         return matchesSubject && matchesSearch
-    })
+    }).sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
 
     // Reset page when filters change
     useEffect(() => {
@@ -481,369 +482,202 @@ export default function MisconceptionsPage() {
 
     // --- VIEW: Dashboard (Selected Exam) ---
     return (
-        <div className="space-y-8 max-w-7xl mx-auto p-4 md:p-6 min-h-screen bg-slate-50/50">
+        <div className="space-y-8 max-w-7xl mx-auto p-4 md:p-8 min-h-screen bg-slate-50/50">
             {/* Header Section */}
-            <div className="flex flex-col">
-                <div className="flex items-center gap-2 mb-2">
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="pl-0 text-slate-500 hover:text-indigo-600 hover:bg-transparent -ml-2"
+                        className="pl-0 text-slate-500 hover:text-indigo-600 hover:bg-transparent -ml-2 mb-2"
                         onClick={() => setSelectedExamId(null)}
                     >
                         <ChevronRight className="h-4 w-4 rotate-180 mr-1" />
                         Back to Exams
                     </Button>
+                    <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                        Insight Analysis
+                    </h1>
+                    <p className="text-slate-500 mt-1">
+                        Deep dive into <span className="font-semibold text-indigo-600">{exams.find(e => e._id === selectedExamId)?.title}</span>
+                    </p>
                 </div>
-                <div className="flex items-end justify-between">
-                    <div>
-                        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
-                            Insight Dashboard
-                        </h1>
-                        <p className="text-slate-500 mt-1 text-lg">
-                            Deep dive analysis for <span className="font-semibold text-indigo-600">{exams.find(e => e._id === selectedExamId)?.title}</span>
-                        </p>
-                    </div>
+                <div className="flex gap-2">
+                    <Button variant="outline" className="gap-2">
+                        <Share2 className="h-4 w-4" /> Share Report
+                    </Button>
+                    <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700">
+                        <Download className="h-4 w-4" /> Export Data
+                    </Button>
                 </div>
             </div>
 
+            {error && (
+                <div className="p-4 text-center text-red-500 bg-red-50 border border-red-200 rounded-lg">
+                    <AlertTriangle className="h-6 w-6 mx-auto mb-2" />
+                    <p>{error}</p>
+                </div>
+            )}
 
-            {
-                error && (
-                    <div className="p-8 text-center text-red-500 bg-red-50 border border-red-200 rounded-lg m-6">
-                        <AlertTriangle className="h-10 w-10 mx-auto mb-2" />
-                        <h3 className="font-bold">Error Loading Insights</h3>
-                        <p>{error}</p>
+            {/* 1. KEY METRICS ROW */}
+            {loading ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {[1, 2, 3].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <StatCard
+                        title="Concept Health Score"
+                        value={`${Math.max(0, 100 - (stats.totalIssues * 2))}%`}
+                        icon={HeartPulse}
+                        color={stats.criticalIssues > 5 ? "rose" : "emerald"}
+                        trend={{ value: 12, label: "vs last exam", positive: true }}
+                    />
+                    <StatCard
+                        title="Critical Gaps"
+                        value={stats.criticalIssues}
+                        icon={AlertTriangle}
+                        color="amber"
+                        description="High confidence misconceptions"
+                    />
+                    <StatCard
+                        title="Students at Risk"
+                        value={stats.affectedStudents}
+                        icon={Users}
+                        color="indigo"
+                        description="Showing consistent error patterns"
+                    />
+                </div>
+            )}
+
+            {/* 2. CHARTS SECTION */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <Card className="lg:col-span-2 border-slate-100 shadow-sm">
+                    <CardHeader>
+                        <CardTitle className="text-base font-semibold text-slate-700">Topic Performance</CardTitle>
+                    </CardHeader>
+                    <CardContent className="h-[300px]">
+                        {loading ? <Skeleton className="h-full w-full" /> : (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={stats.topicData} layout="vertical" margin={{ left: 40 }}>
+                                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                                    <XAxis type="number" hide />
+                                    <YAxis dataKey="name" type="category" tick={{ fill: '#64748b', fontSize: 12 }} width={100} />
+                                    <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '8px', border: 'none' }} />
+                                    <Bar dataKey="value" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={20} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card className="border-slate-100 shadow-sm">
+                    <CardHeader>
+                        <CardTitle className="text-base font-semibold text-slate-700">Severity Distribution</CardTitle>
+                    </CardHeader>
+                    <CardContent className="h-[300px] flex items-center justify-center">
+                        {loading ? <Skeleton className="h-[200px] w-[200px] rounded-full" /> : (
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={severityData}
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {severityData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none' }} />
+                                    <Legend verticalAlign="bottom" height={36} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* 3. INSIGHTS GRID (Masonry-style) */}
+            <div>
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <Sparkles className="h-5 w-5 text-indigo-500" />
+                        Identified Misconceptions
+                    </h2>
+                    <div className="flex gap-2">
+                        <Input
+                            placeholder="Search concepts..."
+                            className="bg-white border-slate-200"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </div>
-                )
-            }
+                </div>
 
-            {/* Stats Overview */}
-            {
-                loading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {[1, 2, 3].map(i => (
-                            <Card key={i} className="h-32 animate-pulse bg-slate-200 border-none"></Card>
-                        ))}
-                    </div>
-                ) : groupedData.length > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                            <Card className="border-none shadow-lg bg-gradient-to-br from-indigo-500 to-purple-600 text-white overflow-hidden relative">
-                                <div className="absolute top-0 right-0 p-4 opacity-10">
-                                    <BrainCircuit className="h-32 w-32" />
-                                </div>
-                                <CardContent className="p-6 relative z-10">
-                                    <p className="text-indigo-100 font-medium mb-1">Total Issues Detected</p>
-                                    <h3 className="text-4xl font-bold">{stats.totalIssues}</h3>
-                                    <div className="mt-4 flex items-center gap-2 text-sm text-indigo-100/80 bg-white/10 w-fit px-2 py-1 rounded-full">
-                                        <TrendingUp className="h-4 w-4" />
-                                        <span>In this Assessment</span>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-
-                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                            <Card className="border-none shadow-lg bg-white relative overflow-hidden group hover:shadow-xl transition-shadow">
-                                <div className="absolute top-0 right-0 w-1 bg-amber-500 h-full"></div>
-                                <CardContent className="p-6">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <p className="text-slate-500 font-medium mb-1">Critical Alerts</p>
-                                            <h3 className="text-4xl font-bold text-slate-900">{stats.criticalIssues}</h3>
-                                        </div>
-                                        <div className="p-3 bg-amber-50 rounded-full">
-                                            <AlertTriangle className="h-6 w-6 text-amber-500" />
-                                        </div>
-                                    </div>
-                                    <p className="mt-4 text-sm text-slate-500">High confidence detections requiring immediate attention.</p>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-
-                        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
-                            <Card className="border-none shadow-lg bg-white relative overflow-hidden group hover:shadow-xl transition-shadow">
-                                <div className="absolute top-0 right-0 w-1 bg-blue-500 h-full"></div>
-                                <CardContent className="p-6">
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <p className="text-slate-500 font-medium mb-1">Students Impacted</p>
-                                            <h3 className="text-4xl font-bold text-slate-900">{stats.affectedStudents}</h3>
-                                        </div>
-                                        <div className="p-3 bg-blue-50 rounded-full">
-                                            <Users className="h-6 w-6 text-blue-500" />
-                                        </div>
-                                    </div>
-                                    <p className="mt-4 text-sm text-slate-500">Total students showing signs of these misconceptions.</p>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    </div>
-                )
-            }
-
-            {/* Charts Section */}
-            {
-                loading ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <Skeleton className="lg:col-span-2 h-[300px] w-full rounded-xl" />
-                        <Skeleton className="h-[300px] w-full rounded-xl" />
-                    </div>
-                ) : groupedData.length > 0 && (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        <motion.div className="lg:col-span-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
-                            <Card className="h-full border-slate-100 shadow-md">
-                                <CardHeader>
-                                    <CardTitle>Topic Distribution</CardTitle>
-                                    <CardDescription>Where misconceptions are clustering</CardDescription>
-                                </CardHeader>
-                                <CardContent className="h-[300px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={stats.topicData}>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                            <XAxis dataKey="name" tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-                                            <YAxis tick={{ fill: '#64748b', fontSize: 12 }} axisLine={false} tickLine={false} />
-                                            <Tooltip
-                                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                                cursor={{ fill: '#f8fafc' }}
-                                            />
-                                            <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={40} />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
-                            <Card className="h-full border-slate-100 shadow-md">
-                                <CardHeader>
-                                    <CardTitle>Confidence Breakdown</CardTitle>
-                                    <CardDescription>AI Model Certainty</CardDescription>
-                                </CardHeader>
-                                <CardContent className="h-[300px]">
-                                    <ResponsiveContainer width="100%" height="100%">
-                                        <PieChart>
-                                            <Pie
-                                                data={severityData}
-                                                innerRadius={60}
-                                                outerRadius={80}
-                                                paddingAngle={5}
-                                                dataKey="value"
-                                            >
-                                                {severityData.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                                ))}
-                                            </Pie>
-                                            <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
-                                            <Legend verticalAlign="bottom" height={36} />
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    </div>
-                )
-            }
-
-            {/* Content Grid */}
-            {
-                loading ? (
+                {loading ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {Array.from({ length: 3 }).map((_, i) => (
-                            <div key={i} className="space-y-4">
-                                <Skeleton className="h-[200px] w-full rounded-xl" />
-                                <div className="space-y-2">
-                                    <Skeleton className="h-4 w-3/4" />
-                                    <Skeleton className="h-4 w-1/2" />
-                                </div>
-                            </div>
-                        ))}
+                        {[1, 2, 3, 4, 5, 6].map(i => <Skeleton key={i} className="h-64 rounded-xl" />)}
                     </div>
                 ) : filteredGroups.length === 0 ? (
-                    <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-200">
-                        <div className="bg-indigo-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <Sparkles className="h-10 w-10 text-indigo-500" />
-                        </div>
-                        <h3 className="text-xl font-bold text-slate-900">All Clear!</h3>
-                        <p className="text-slate-500 mt-2 max-w-sm mx-auto">No misconceptions found matching your filters. Keep up the great teaching!</p>
+                    <div className="text-center py-20 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                        <p className="text-slate-500">No insights found.</p>
                     </div>
                 ) : (
-                    <div className="space-y-8">
-                        {groupedData.length > 0 && groupedData[0].misconceptions.map((misconception: any, index: number) => {
-                            const displayChain = misconception.concept_chain || ["Subject", "Unit", "Topic (AI Inferred)"];
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-max">
+                        {groupedData.flatMap(g => g.misconceptions).map((misconception: any, index: number) => {
                             const confidencePercent = ((misconception.confidence_score || 0) * 100).toFixed(0);
+                            const isExpanded = false; // TODO: Implement individual card expansion state?
 
                             return (
                                 <motion.div
                                     key={misconception.id}
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: index * 0.1 }}
-                                    className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
+                                    transition={{ delay: index * 0.05 }}
+                                    className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-all group overflow-hidden flex flex-col"
                                 >
-                                    {/* Header */}
-                                    <div className="bg-slate-50/50 border-b px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                        <div>
-                                            <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                                                <span className="flex items-center gap-1"><Microscope className="h-3 w-3" /> Diagnostic Mode</span>
-                                                <span>•</span>
-                                                <span>ID: {(misconception.id).substring(0, 8)}</span>
+                                    <div className="p-5 flex-1">
+                                        <div className="flex justify-between items-start mb-3">
+                                            <Badge variant="outline" className="bg-indigo-50 text-indigo-700 border-indigo-100 uppercase text-[10px] tracking-wider">
+                                                {misconception.concept_chain?.[misconception.concept_chain?.length - 1] || "Concept"}
+                                            </Badge>
+                                            <div className={`text-sm font-bold ${Number(confidencePercent) > 70 ? 'text-rose-600' : 'text-amber-500'}`}>
+                                                {confidencePercent}% Confidence
                                             </div>
-                                            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                                                {misconception.status === 'valid' ? (
-                                                    <Badge className="bg-green-600 text-white gap-1 pl-1.5"><CheckCircle className="h-3.5 w-3.5" /> Validated Pattern</Badge>
-                                                ) : misconception.status === 'rejected' ? (
-                                                    <Badge variant="secondary" className="bg-slate-100 text-slate-500 gap-1 pl-1.5"><XCircle className="h-3.5 w-3.5" /> Dismissed</Badge>
-                                                ) : (
-                                                    <Badge className="bg-amber-500 text-white gap-1 pl-1.5"><Eye className="h-3.5 w-3.5" /> Under Investigation</Badge>
-                                                )}
-                                            </h3>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="text-right md:block mr-2 flex justify-between md:justify-end items-center w-full md:w-auto gap-4">
-                                                <div className="text-xs text-slate-500 font-medium uppercase">Confidence</div>
-                                                <div className={`text-lg font-bold ${Number(confidencePercent) > 70 ? 'text-green-600' : 'text-amber-500'}`}>
-                                                    {confidencePercent}%
-                                                </div>
+
+                                        <h3 className="font-bold text-slate-900 leading-tight mb-2">
+                                            {misconception.reasoning ? misconception.reasoning.split('.')[0] : "Pattern Detected"}
+                                        </h3>
+
+                                        <p className="text-sm text-slate-500 line-clamp-3 mb-4">
+                                            {misconception.reasoning}
+                                        </p>
+
+                                        <div className="bg-slate-50 rounded-md p-3 border border-slate-100">
+                                            <div className="flex items-start gap-2">
+                                                <Quote className="h-3 w-3 text-slate-400 mt-1 shrink-0" />
+                                                <p className="text-xs text-slate-600 italic">
+                                                    "{misconception.evidence?.[0] || "No text evidence"}"
+                                                </p>
                                             </div>
-                                            <div className="h-8 w-px bg-slate-200 mx-2 hidden md:block"></div>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="text-slate-500 hover:text-red-600 hover:bg-red-50"
-                                                onClick={() => handleStatusUpdate(misconception.id, "rejected")}
-                                                disabled={misconception.status === "rejected"}
-                                            >
-                                                Dismiss
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                className={`${misconception.status === "valid" ? "bg-green-100 text-green-800 hover:bg-green-200" : "bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200"}`}
-                                                onClick={() => handleStatusUpdate(misconception.id, "valid")}
-                                                disabled={misconception.status === "valid"}
-                                            >
-                                                {misconception.status === "valid" ? (
-                                                    <><CheckCircle className="h-4 w-4 mr-2" /> Validated</>
-                                                ) : (
-                                                    <><ClipboardCheck className="h-4 w-4 mr-2" /> Validate</>
-                                                )}
-                                            </Button>
                                         </div>
                                     </div>
 
-                                    {/* Content Body */}
-                                    <div className="p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
-                                        {/* LEFT PANEL: EVIDENCE (7 cols) */}
-                                        <div className="lg:col-span-7 space-y-6">
-                                            <div className="flex items-center gap-2 text-sm text-slate-500 font-medium bg-slate-50 p-2 px-4 rounded-full border w-fit">
-                                                <GraduationCap className="h-4 w-4 text-indigo-500" />
-                                                {displayChain.join("  ›  ")}
-                                            </div>
-
-                                            <Card className="border-slate-200 shadow-sm">
-                                                <CardHeader className="bg-slate-50 py-3 border-b">
-                                                    <CardTitle className="text-sm font-bold text-slate-500 uppercase flex items-center gap-2">
-                                                        <HelpCircle className="h-4 w-4" /> Exam Context
-                                                    </CardTitle>
-                                                </CardHeader>
-                                                <CardContent className="p-6">
-                                                    <p className="text-lg text-slate-900 font-medium mb-6">
-                                                        {misconception.question_text || "Question content unavailable..."}
-                                                    </p>
-                                                    <div className="space-y-3">
-                                                        {misconception.options?.map((opt: any, i: number) => {
-                                                            const isCorrect = opt.is_correct;
-                                                            const isDistractor = misconception.cluster_label?.includes(opt.text) || (!isCorrect && i === 1);
-                                                            return (
-                                                                <div key={i} className={`p-3 border rounded-lg flex items-center gap-3 relative overflow-hidden ${isCorrect ? 'bg-green-50 border-green-200' : ''} ${isDistractor ? 'bg-amber-50 border-amber-200 ring-1 ring-amber-200' : ''} ${!isCorrect && !isDistractor ? 'opacity-60' : ''}`}>
-                                                                    {isDistractor && <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-400"></div>}
-                                                                    <div className={`w-6 h-6 rounded-full border flex items-center justify-center text-xs font-bold flex-shrink-0 ${isCorrect ? 'bg-green-600 text-white border-green-600' : ''} ${isDistractor ? 'bg-white text-amber-600 border-amber-400' : ''}`}>
-                                                                        {String.fromCharCode(65 + i)}
-                                                                    </div>
-                                                                    <span className={`flex-grow ${isCorrect ? 'text-green-800 font-medium' : 'text-slate-700'}`}>{opt.text}</span>
-                                                                    {isCorrect && <Badge className="bg-green-200 text-green-800 hover:bg-green-200 border-none ml-2">Correct</Badge>}
-                                                                    {isDistractor && <Badge className="bg-amber-200 text-amber-800 hover:bg-amber-200 border-none ml-2">Misconception</Badge>}
-                                                                </div>
-                                                            )
-                                                        }) || <div className="text-slate-400 italic">No options loaded. Check backend API.</div>}
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-
-                                            <div className="space-y-3">
-                                                <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                                                    <Users className="h-4 w-4 text-indigo-500" /> Student Voices
-                                                </h4>
-                                                <div className="grid gap-3">
-                                                    {misconception.evidence && misconception.evidence.length > 0 ? (
-                                                        misconception.evidence.map((txt: string, i: number) => (
-                                                            <div key={i} className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-slate-700 text-sm italic relative pl-8">
-                                                                <Quote className="h-3 w-3 text-slate-300 absolute top-3 left-3" />
-                                                                "{txt}"
-                                                            </div>
-                                                        ))
-                                                    ) : (
-                                                        <div className="text-sm text-slate-400 italic">No text evidence captured.</div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* RIGHT PANEL: DIAGNOSIS (5 cols) */}
-                                        <div className="lg:col-span-5 space-y-6">
-                                            <Card className="border-indigo-100 shadow-md bg-white relative overflow-hidden ring-4 ring-indigo-50/30">
-                                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
-                                                <CardHeader>
-                                                    <CardTitle className="flex items-center gap-2 text-indigo-700">
-                                                        <Stethoscope className="h-5 w-5" /> AI Diagnosis
-                                                    </CardTitle>
-                                                </CardHeader>
-                                                <CardContent className="space-y-4">
-                                                    <div className="bg-indigo-50/50 p-4 rounded-lg text-base font-medium text-slate-800 leading-relaxed border border-indigo-100">
-                                                        "{misconception.reasoning || `Observed pattern consistent with '${misconception.cluster_label}'.`}"
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        <Badge variant="outline" className="bg-white">Recurrent Pattern</Badge>
-                                                        <Badge variant="outline" className="bg-white text-amber-600 border-amber-200">Concept Gap</Badge>
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-
-                                            <Card className="bg-slate-900 text-slate-100 border-none shadow-xl">
-                                                <CardHeader>
-                                                    <CardTitle className="flex items-center gap-2 text-white text-base">
-                                                        <Lightbulb className="h-5 w-5 text-yellow-400" /> Remediation
-                                                    </CardTitle>
-                                                </CardHeader>
-                                                <CardContent className="space-y-4">
-                                                    <div className="flex gap-3 items-start">
-                                                        <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold flex-shrink-0">1</div>
-                                                        <div>
-                                                            <p className="font-semibold text-sm">Review Core Definition</p>
-                                                            <p className="text-xs text-slate-400 mt-1">Revisit {displayChain[displayChain.length - 1]} fundamentals.</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex gap-3 items-start">
-                                                        <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold flex-shrink-0">2</div>
-                                                        <div>
-                                                            <p className="font-semibold text-sm">Targeted Practice</p>
-                                                            <p className="text-xs text-slate-400 mt-1">Assign differentiator problems.</p>
-                                                        </div>
-                                                    </div>
-                                                    <Button className="w-full bg-white text-slate-900 hover:bg-slate-100 font-semibold mt-2">
-                                                        Generate Quiz <ArrowRight className="h-4 w-4 ml-2" />
-                                                    </Button>
-                                                </CardContent>
-                                            </Card>
-                                        </div>
+                                    <div className="p-3 border-t bg-slate-50/50 flex justify-between items-center">
+                                        <span className="text-xs text-slate-400 font-medium">{misconception.status}</span>
+                                        <Button size="sm" variant="ghost" className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 h-8">
+                                            Analyze <ArrowRight className="h-3 w-3 ml-1" />
+                                        </Button>
                                     </div>
                                 </motion.div>
                             )
                         })}
                     </div>
-                )
-            }
-        </div >
+                )}
+            </div>
+        </div>
     )
 }

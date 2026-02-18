@@ -419,6 +419,8 @@ async def get_assessment_summaries(current_user: dict = Depends(get_current_user
             summaries.append({
                 "id": exam_id,
                 "title": exam.get("title", "Untitled Exam"),
+                "subject_id": exam.get("subject_id"),
+                "created_at": exam.get("created_at"),
                 "total_students": 0,
                 "avg_score": 0,
                 "status": "No submissions"
@@ -429,7 +431,7 @@ async def get_assessment_summaries(current_user: dict = Depends(get_current_user
         student_ids = set(r["student_id"] for r in responses)
         total_correct = sum(1 for r in responses if r.get("is_correct", False))
         total_responses = len(responses)
-        
+
         avg_score = 0
         if total_responses > 0:
             avg_score = (total_correct / total_responses) * 100

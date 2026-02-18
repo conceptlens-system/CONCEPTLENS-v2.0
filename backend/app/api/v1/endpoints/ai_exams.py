@@ -75,10 +75,7 @@ async def generate_exam(request: ExamGenerationRequest, current_user: dict = Dep
                  # No units specified, maybe use full? (Logic above covers full if request.units is None)
                  # Fallback if no syllabus parsed yet
                  syllabus_text = f"Subject: {subject['name']}. (No detailed syllabus provided, please generate general questions for this subject.)"
-        else:
-            # Fallback if no syllabus parsed yet?
-            # We can try using the subject name as a fallback prompt
-            syllabus_text = f"Subject: {subject['name']}. (No detailed syllabus provided, please generate general questions for this subject.)"
+
 
         # 2. Configure Gemini
         api_key = settings.GEMINI_API_KEY
