@@ -1,0 +1,17 @@
+node_modules/
+.next/
+.env
+__pycache__/
+*.pyc
+venv/
+.pytest_cache/
+dist/
+build/
+.DS_Store
+
+TO-DO-LIST.docx
+
+.env.local
+backend/.env
+backend/.env.local
+*.env

@@ -1,0 +1,95 @@
+--- INSPECTING USERS ---
+Connected to MongoDB
+Found 9 users.
+
+------------------------------------------------
+ID: 6979e1b04234878eae939cfa
+Email: admin@conceptlens.edu
+Role: 'admin' (Type: <class 'str'>)
+Hashed Password: [PRESENT] Length: 87
+                 Prefix: $pbkdf2-sh...
+Auth Provider: N/A
+Is Active: True
+Extra Keys: {'name'}
+
+------------------------------------------------
+ID: 697a5b2a052f0bd4f9ff0d8c
+Email: prathamdarji15122@gmail.com
+Role: 'professor' (Type: <class 'str'>)
+Hashed Password: [PRESENT] Length: 87
+                 Prefix: $pbkdf2-sh...
+Auth Provider: google
+Is Active: True
+Extra Keys: {'reset_token_expiry', 'reset_token_hash', 'bio', 'office_hours', 'linkedin_url', 'research_interests', 'academic_history', 'phone'}
+
+------------------------------------------------
+ID: 697b1b17f71b49c69b581f71
+Email: rdx0299@gmail.com
+Role: 'professor' (Type: <class 'str'>)
+Hashed Password: [MISSING]
+Auth Provider: google
+Is Active: True
+Extra Keys: set()
+
+------------------------------------------------
+ID: 697b2085ea5f1dd189f62dcf
+Email: nikhilkoladia@gmail.com
+Role: 'student' (Type: <class 'str'>)
+Hashed Password: [PRESENT] Length: 87
+                 Prefix: $pbkdf2-sh...
+Auth Provider: local
+Is Active: True
+Extra Keys: {'reset_token_hash', 'is_superuser', 'reset_token_expiry'}
+
+------------------------------------------------
+ID: 697b23d8ea5f1dd189f62dd0
+Email: aryan@gmail.com
+Role: 'student' (Type: <class 'str'>)
+Hashed Password: [PRESENT] Length: 87
+                 Prefix: $pbkdf2-sh...
+Auth Provider: local
+Is Active: True
+Extra Keys: {'skills', 'reset_token_expiry', 'reset_token_hash', 'is_superuser', 'bio', 'linkedin_url', 'academic_history', 'phone'}
+
+------------------------------------------------
+ID: 697b34577aa3fa10008c4c0e
+Email: hetkikani990@gmail.com
+Role: 'student' (Type: <class 'str'>)
+Hashed Password: [PRESENT] Length: 87
+                 Prefix: $pbkdf2-sh...
+Auth Provider: local
+Is Active: True
+Extra Keys: {'skills', 'reset_token_expiry', 'reset_token_hash', 'is_superuser', 'bio', 'linkedin_url', 'academic_history', 'phone'}
+
+------------------------------------------------
+ID: 697b4f64d8e73b891732b71e
+Email: test_student@example.com
+Role: 'student' (Type: <class 'str'>)
+Hashed Password: [PRESENT] Length: 87
+                 Prefix: $pbkdf2-sh...
+Auth Provider: local
+Is Active: True
+Extra Keys: {'reset_token_hash', 'is_superuser', 'reset_token_expiry'}
+
+------------------------------------------------
+ID: 697b5d2be7db83ef324752fb
+Email: shyam@gmail.com
+Role: 'professor' (Type: <class 'str'>)
+Hashed Password: [PRESENT] Length: 87
+                 Prefix: $pbkdf2-sh...
+Auth Provider: local
+Is Active: True
+Extra Keys: set()
+
+------------------------------------------------
+ID: 697c46f6c52c319d2cc6bf1c
+Email: vrund@gmail.com
+Role: 'professor' (Type: <class 'str'>)
+Hashed Password: [PRESENT] Length: 87
+                 Prefix: $pbkdf2-sh...
+Auth Provider: local
+Is Active: True
+Extra Keys: {'subjects', 'department'}
+Closed MongoDB connection
+
+--- INSPECTION COMPLETE ---

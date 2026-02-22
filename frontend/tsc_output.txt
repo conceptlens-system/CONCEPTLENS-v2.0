@@ -1,0 +1,4 @@
+src/app/professor/curriculum/page.tsx(226,56): error TS18047: 'editingSubject' is possibly 'null'.
+src/app/professor/curriculum/page.tsx(227,88): error TS18047: 'editingSubject' is possibly 'null'.
+src/components/ui/calendar.tsx(57,17): error TS2353: Object literal may only specify known properties, and 'IconLeft' does not exist in type 'Partial<CustomComponents>'.
+src/components/ui/form.tsx(14,8): error TS2307: Cannot find module 'react-hook-form' or its corresponding type declarations.

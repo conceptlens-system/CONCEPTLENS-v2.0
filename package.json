@@ -1,0 +1,18 @@
+{
+    "name": "ai-bharat-root",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "dev": "concurrently -n \"NEXT,API\" -c \"cyan,blue\" \"npm run client\" \"npm run server\"",
+        "client": "npm run dev --prefix frontend",
+        "server": "cd backend && venv\\Scripts\\python -u -m uvicorn app.main:app --reload",
+        "install:all": "npm install && cd frontend && npm install && cd ../backend && pip install -r requirements.txt"
+    },
+    "devDependencies": {
+        "concurrently": "^9.1.2"
+    },
+    "dependencies": {
+        "next-auth": "^4.24.13",
+        "node-fetch": "^3.3.2"
+    }
+}
