@@ -246,7 +246,12 @@ async def update_user_profile(
     user_id = current_user["_id"]
     
     # Filter allowed fields
-    allowed = ["full_name", "bio", "phone", "skills", "research_interests", "office_hours", "linkedin_url", "academic_history", "institution_id", "contact_number", "department", "branch", "institute_name"]
+    allowed = [
+        "full_name", "bio", "phone", "skills", "research_interests", 
+        "office_hours", "linkedin_url", "academic_history", "institution_id", 
+        "contact_number", "department", "branch", "institute_name",
+        "degree", "current_semester"
+    ]
     update_data = {k: v for k, v in profile_data.items() if k in allowed}
     
     if not update_data:

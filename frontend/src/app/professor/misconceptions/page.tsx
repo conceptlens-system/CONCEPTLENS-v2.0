@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, Suspense } from "react"
 import { fetchGroupedMisconceptions, fetchAssessmentSummaries, fetchSubjects, updateMisconceptionStatus, validateMisconception, fetchExamParticipation, downloadExamPdf } from "@/lib/api"
 import { useSession } from "next-auth/react"
 import { Input } from "@/components/ui/input"
@@ -25,10 +25,11 @@ import { DonutChart } from "@/components/charts/DonutChart"
 import { ConceptGraph } from "@/components/misconception/ConceptGraph"
 import { Network, LayoutList } from "lucide-react"
 
+
 import { PageTransition } from "@/components/PageTransition"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 
-export default function MisconceptionsPage() {
+function MisconceptionsPageContent() {
     const { data: session } = useSession()
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -959,5 +960,21 @@ function ListIcon(props: any) {
             <line x1="3" x2="3.01" y1="12" y2="12" />
             <line x1="3" x2="3.01" y1="18" y2="18" />
         </svg>
+<<<<<<< HEAD
+=======
+    )
+}
+
+export default function MisconceptionsPage() {
+    return (
+        <Suspense fallback={
+            <div className="p-8 space-y-4 max-w-7xl mx-auto">
+                <Skeleton className="h-12 w-1/3" />
+                <Skeleton className="h-64 w-full" />
+            </div>
+        }>
+            <MisconceptionsPageContent />
+        </Suspense>
+>>>>>>> 5f13c1e (feat(student): Enhancements to student portal, analytics, onboarding, and curriculum visibility)
     )
 }

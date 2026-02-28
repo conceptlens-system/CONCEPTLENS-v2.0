@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
-import { fetchClass, fetchAnnouncements, fetchPublicProfile } from "@/lib/api"
+import { fetchClass, fetchAnnouncements, fetchPublicProfile, fetchSubject } from "@/lib/api"
 import { formatDateLocal } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { PageTransition } from "@/components/PageTransition"
-import { Loader2, ArrowLeft, User, Megaphone, Calendar } from "lucide-react"
+import { Loader2, ArrowLeft, User, Megaphone, Calendar, BookOpen, Layers } from "lucide-react"
 
 import { ProfessorProfileDialog } from "@/components/ProfessorProfileDialog"
 
@@ -24,6 +26,7 @@ export default function StudentClassDetailsPage() {
     const [classData, setClassData] = useState<any>(null)
     const [professor, setProfessor] = useState<any>(null)
     const [announcements, setAnnouncements] = useState<any[]>([])
+    const [subjectData, setSubjectData] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [profModalOpen, setProfModalOpen] = useState(false)
 
@@ -54,6 +57,14 @@ export default function StudentClassDetailsPage() {
                 setAnnouncements(aData)
             } catch (e) { console.warn("Announcements fetch failed", e) }
 
+            // 4. Fetch Subject for Curriculum
+            if (cData.subject_id) {
+                try {
+                    const sData = await fetchSubject(cData.subject_id, token)
+                    setSubjectData(sData)
+                } catch (e) { console.warn("Subject fetch failed", e) }
+            }
+
         } catch (e) {
             console.error(e)
         } finally {
@@ -83,29 +94,85 @@ export default function StudentClassDetailsPage() {
                         </CardHeader>
                     </Card>
 
-                    <h2 className="text-xl font-bold flex items-center gap-2 mt-8">
-                        <Megaphone className="h-5 w-5 text-slate-600" />
-                        Announcements
-                    </h2>
-                    {announcements.length === 0 ? (
-                        <p className="text-slate-500 italic">No announcements yet.</p>
-                    ) : (
-                        <div className="space-y-4">
-                            {announcements.map((ann: any) => (
-                                <Card key={ann._id}>
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="text-lg">{ann.title}</CardTitle>
-                                        <CardDescription className="text-xs">
-                                            {formatDateLocal(ann.created_at)}
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <p className="text-slate-700 whitespace-pre-wrap">{ann.content}</p>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    )}
+                    <Tabs defaultValue="announcements" className="mt-8">
+                        <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent">
+                            <TabsTrigger
+                                value="announcements"
+                                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none px-6 py-3 font-medium"
+                            >
+                                <Megaphone className="h-4 w-4 mr-2" />
+                                Announcements
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="curriculum"
+                                className="data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-indigo-600 rounded-none px-6 py-3 font-medium"
+                            >
+                                <BookOpen className="h-4 w-4 mr-2" />
+                                Curriculum
+                            </TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent value="announcements" className="pt-6">
+                            {announcements.length === 0 ? (
+                                <p className="text-slate-500 italic text-center py-8">No announcements yet.</p>
+                            ) : (
+                                <div className="space-y-4">
+                                    {announcements.map((ann: any) => (
+                                        <Card key={ann._id}>
+                                            <CardHeader className="pb-2">
+                                                <CardTitle className="text-lg">{ann.title}</CardTitle>
+                                                <CardDescription className="text-xs">
+                                                    {formatDateLocal(ann.created_at)}
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <p className="text-slate-700 whitespace-pre-wrap">{ann.content}</p>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
+                        </TabsContent>
+
+                        <TabsContent value="curriculum" className="pt-6">
+                            {!subjectData ? (
+                                <p className="text-slate-500 italic text-center py-8">Loading curriculum...</p>
+                            ) : !subjectData.syllabus || subjectData.syllabus.length === 0 ? (
+                                <div className="text-center py-12 border-2 border-dashed rounded-lg text-slate-400">
+                                    <Layers className="h-10 w-10 mx-auto mb-2 opacity-20" />
+                                    <p>No curriculum has been published for this subject yet.</p>
+                                </div>
+                            ) : (
+                                <div className="bg-white border rounded-lg p-1">
+                                    <Accordion type="multiple" className="w-full">
+                                        {subjectData.syllabus.map((syl: any, index: number) => {
+                                            let cleanName = syl.unit_name || "Overview"
+                                            const prefixRegex = new RegExp(`^Unit\\s*${syl.unit}\\s*[:-]?\\s*`, 'i')
+                                            cleanName = cleanName.replace(prefixRegex, '')
+
+                                            return (
+                                                <AccordionItem key={index} value={`unit-${index}`} className="border-b last:border-0">
+                                                    <AccordionTrigger className="px-4 hover:bg-slate-50 hover:no-underline">
+                                                        <div className="flex items-start sm:items-center gap-2 text-left w-full pr-4">
+                                                            <span className="font-semibold text-indigo-700 whitespace-nowrap shrink-0">Unit {syl.unit}:</span>
+                                                            <span className="font-medium text-slate-800 break-words">{cleanName}</span>
+                                                        </div>
+                                                    </AccordionTrigger>
+                                                    <AccordionContent className="px-4 pb-4 pt-2">
+                                                        <ul className="list-disc list-inside space-y-1 text-slate-600 pl-16">
+                                                            {syl.topics.map((topic: string, tIndex: number) => (
+                                                                <li key={tIndex} className="leading-relaxed">{topic}</li>
+                                                            ))}
+                                                        </ul>
+                                                    </AccordionContent>
+                                                </AccordionItem>
+                                            )
+                                        })}
+                                    </Accordion>
+                                </div>
+                            )}
+                        </TabsContent>
+                    </Tabs>
                 </div>
 
                 {/* Sidebar: Professor & Tools */}

@@ -23,6 +23,8 @@ class InstitutionBase(BaseModel):
     name: str
     type: str  # University, School, College
     location: str
+    state: Optional[str] = None
+    city: Optional[str] = None
     domains: List[str] = []
     subscription_status: str = "Active"
 
@@ -71,6 +73,8 @@ class UserBase(BaseModel):
     department: Optional[str] = None
     branch: Optional[str] = None
     institute_name: Optional[str] = None # Text field as requested
+    degree: Optional[str] = None # For Students (e.g. B.Tech)
+    current_semester: Optional[int] = None # For Students (e.g. 1)
     
     bio: Optional[str] = None
     phone: Optional[str] = None
@@ -79,6 +83,10 @@ class UserBase(BaseModel):
     office_hours: Optional[str] = None # For Professors
     linkedin_url: Optional[str] = None
     academic_history: Optional[str] = None
+    
+    # NEW fields for Professor verification:
+    designation: Optional[str] = None
+    employee_id: Optional[str] = None
 
     institution_id: Optional[str] = None
     auth_provider: str = "email" # email, google
@@ -100,8 +108,12 @@ class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     contact_number: Optional[str] = None
     department: Optional[str] = None
+    designation: Optional[str] = None
+    employee_id: Optional[str] = None
     branch: Optional[str] = None
     institute_name: Optional[str] = None
+    degree: Optional[str] = None
+    current_semester: Optional[int] = None
     linkedin_url: Optional[str] = None
     academic_history: Optional[str] = None
     research_interests: Optional[List[str]] = None
@@ -178,8 +190,17 @@ class ProfessorRequest(BaseModel):
     id: Optional[PyObjectId] = Field(alias="_id", default=None)
     full_name: str
     email: EmailStr
-    institution_id: str
+    institution_id: Optional[str] = None
+    new_institution_name: Optional[str] = None
+    state: Optional[str] = None
+    city: Optional[str] = None
     subject_expertise: str
+    
+    department: str
+    designation: str
+    employee_id: Optional[str] = None
+    linkedin_url: Optional[str] = None
+    
     status: str = "PENDING" # PENDING, APPROVED, REJECTED
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -191,8 +212,15 @@ class ProfessorRequest(BaseModel):
 class ProfessorRequestCreate(BaseModel):
     full_name: str
     email: EmailStr
-    institution_id: str
+    institution_id: Optional[str] = None
+    new_institution_name: Optional[str] = None
+    state: Optional[str] = None
+    city: Optional[str] = None
     subject_expertise: str
+    department: str
+    designation: str
+    employee_id: Optional[str] = None
+    linkedin_url: Optional[str] = None
 
 # --- Class Management Models ---
 class Class(BaseModel):

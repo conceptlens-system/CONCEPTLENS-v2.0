@@ -132,15 +132,6 @@ export default function LoginPage() {
                     Google
                 </Button>
 
-                <div className="text-center text-xs text-slate-400 mt-2">
-                    Are you a professor?{" "}
-                    <Link
-                        href="/request-access"
-                        className="underline hover:text-indigo-600 dark:hover:text-indigo-400"
-                    >
-                        Request Access
-                    </Link>
-                </div>
 
                 <p className="px-8 text-center text-sm text-slate-500 dark:text-slate-400">
                     Don&apos;t have an account?{" "}

@@ -124,6 +124,16 @@ export default function SignupPage() {
                 </p>
 
                 <div className="text-center text-xs text-slate-400 mt-2">
+                    Are you a professor?{" "}
+                    <Link
+                        href="/request-access"
+                        className="underline hover:text-indigo-600 dark:hover:text-indigo-400"
+                    >
+                        Request Access
+                    </Link>
+                </div>
+
+                <div className="text-center text-xs text-slate-400 mt-2">
                     By clicking continue, you agree to our{" "}
                     <a href="/terms" className="underline hover:text-slate-500">Terms of Service</a>{" "}
                     and{" "}

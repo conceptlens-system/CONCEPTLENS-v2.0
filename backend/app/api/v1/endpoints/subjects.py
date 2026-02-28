@@ -60,6 +60,29 @@ async def update_syllabus(subject_id: str, syllabus: List[dict] = Body(...), cur
     updated["_id"] = str(updated["_id"])
     return updated
 
+@router.get("/{subject_id}", response_model=Subject)
+async def get_subject(subject_id: str, current_user: dict = Depends(get_current_user)):
+    db = await get_database()
+    try:
+        obj_id = ObjectId(subject_id)
+    except:
+        raise HTTPException(status_code=400, detail="Invalid ID")
+
+    # Fetch subject
+    s = await db.subjects.find_one({"_id": obj_id})
+    if not s:
+        raise HTTPException(status_code=404, detail="Subject not found")
+
+    # Access control: 
+    # - If professor, they should own it (though strictly maybe they just want to view any?)
+    # - If student, they need to be enrolled in a class that uses this subject
+    # For now, it's safe to just let any authenticated user view a subject's metadata/syllabus 
+    # to avoid complex enrollment resolution per request, as syllabus is generally public.
+    # But if we strictly want only enrolled students, we'd check `class_students`.
+    
+    s["_id"] = str(s["_id"])
+    return s
+
 @router.patch("/{subject_id}", response_model=Subject)
 async def update_subject_metadata(subject_id: str, updates: dict = Body(...), current_user: dict = Depends(get_current_user)):
     db = await get_database()

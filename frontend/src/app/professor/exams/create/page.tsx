@@ -840,17 +840,38 @@ function CreateExamContent() {
                             )}>
                                 <span className="font-semibold text-slate-500 uppercase text-[10px] tracking-wider shrink-0">Subject:</span>
                                 <span className="font-medium truncate max-w-[200px] md:max-w-[150px] text-left">
-                                    {subjects.find(s => s._id === selectedSubject)?.name || "Select Subject..."}
+                                    {subjects.find(s => s._id === selectedSubject)?.name || selectedSubject || "Select Subject..."}
                                 </span>
                                 <ChevronsUpDown className="h-3 w-3 opacity-50 ml-auto md:ml-0" />
                             </button>
                         </PopoverTrigger>
                         <PopoverContent align="start" className="w-[280px] p-0">
                             <Command>
-                                <CommandInput placeholder="Search subject..." />
-                                <CommandEmpty>No subject found.</CommandEmpty>
-                                <CommandGroup>
-                                    <CommandList>
+                                <CommandInput
+                                    placeholder="Search or type custom subject..."
+                                    value={subjectSearch}
+                                    onValueChange={setSubjectSearch}
+                                />
+                                <CommandList>
+                                    <CommandEmpty>
+                                        {subjectSearch ? (
+                                            <button
+                                                className="w-full text-left px-4 py-2 text-sm text-indigo-600 hover:bg-slate-50 hover:text-indigo-700 font-medium"
+                                                onClick={() => {
+                                                    if (!subjects.find(s => s._id === subjectSearch)) {
+                                                        setSubjects([...subjects, { _id: subjectSearch, name: subjectSearch }]);
+                                                    }
+                                                    setSelectedSubject(subjectSearch)
+                                                    if (errors.subject) setErrors({ ...errors, subject: false })
+                                                    setOpenSubject(false)
+                                                    setSubjectSearch("")
+                                                }}
+                                            >
+                                                Use custom: "{subjectSearch}"
+                                            </button>
+                                        ) : "No subject found."}
+                                    </CommandEmpty>
+                                    <CommandGroup>
                                         {subjects.map(subject => (
                                             <CommandItem
                                                 key={subject._id}
@@ -859,14 +880,33 @@ function CreateExamContent() {
                                                     setSelectedSubject(subject._id)
                                                     if (errors.subject) setErrors({ ...errors, subject: false })
                                                     setOpenSubject(false)
+                                                    setSubjectSearch("")
                                                 }}
                                             >
                                                 <Check className={cn("mr-2 h-4 w-4", selectedSubject === subject._id ? "opacity-100" : "opacity-0")} />
                                                 {subject.name}
                                             </CommandItem>
                                         ))}
-                                    </CommandList>
-                                </CommandGroup>
+                                        {subjectSearch && !subjects.find(s => s.name.toLowerCase() === subjectSearch.toLowerCase()) && (
+                                            <CommandItem
+                                                value={`custom_${subjectSearch}`}
+                                                onSelect={() => {
+                                                    if (!subjects.find(s => s._id === subjectSearch)) {
+                                                        setSubjects([...subjects, { _id: subjectSearch, name: subjectSearch }]);
+                                                    }
+                                                    setSelectedSubject(subjectSearch)
+                                                    if (errors.subject) setErrors({ ...errors, subject: false })
+                                                    setOpenSubject(false)
+                                                    setSubjectSearch("")
+                                                }}
+                                                className="text-indigo-600 font-medium cursor-pointer"
+                                            >
+                                                <Plus className="mr-2 h-4 w-4" />
+                                                Use "{subjectSearch}"
+                                            </CommandItem>
+                                        )}
+                                    </CommandGroup>
+                                </CommandList>
                             </Command>
                         </PopoverContent>
                     </Popover>
@@ -890,24 +930,65 @@ function CreateExamContent() {
                                 <ChevronsUpDown className="h-3 w-3 opacity-50 ml-auto md:ml-0" />
                             </button>
                         </PopoverTrigger>
-                        <PopoverContent align="start" className="w-[280px] p-2">
-                            <div className="space-y-1 max-h-[300px] overflow-y-auto">
-                                {classes.map((cls) => (
-                                    <div
-                                        key={cls._id}
-                                        className="flex items-center space-x-2 p-2 hover:bg-slate-100 rounded-md cursor-pointer"
-                                        onClick={(e) => {
-                                            e.preventDefault()
-                                            toggleClass(cls._id)
-                                        }}
-                                    >
-                                        <Checkbox checked={selectedClasses.includes(cls._id)} id={`cls-${cls._id}`} />
-                                        <label htmlFor={`cls-${cls._id}`} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 pointer-events-none">
-                                            {cls.name} <span className="text-xs text-slate-400 ml-1">({cls.students?.length || 0} students)</span>
-                                        </label>
-                                    </div>
-                                ))}
-                            </div>
+                        <PopoverContent align="start" className="w-[280px] p-0">
+                            <Command>
+                                <CommandInput
+                                    placeholder="Search or type custom class..."
+                                    value={classSearch}
+                                    onValueChange={setClassSearch}
+                                />
+                                <CommandList>
+                                    <CommandEmpty>
+                                        {classSearch ? (
+                                            <button
+                                                className="w-full text-left px-4 py-2 text-sm text-indigo-600 hover:bg-slate-50 hover:text-indigo-700 font-medium"
+                                                onClick={() => {
+                                                    if (!classes.find(c => c._id === classSearch)) {
+                                                        setClasses([...classes, { _id: classSearch, name: classSearch }]);
+                                                    }
+                                                    toggleClass(classSearch);
+                                                    if (errors.classes) setErrors({ ...errors, classes: false });
+                                                    setClassSearch("");
+                                                }}
+                                            >
+                                                Use custom: "{classSearch}"
+                                            </button>
+                                        ) : "No class found."}
+                                    </CommandEmpty>
+                                    <CommandGroup>
+                                        {classes.map((cls) => (
+                                            <CommandItem
+                                                key={cls._id}
+                                                value={cls.name}
+                                                onSelect={() => {
+                                                    toggleClass(cls._id)
+                                                    if (errors.classes) setErrors({ ...errors, classes: false })
+                                                }}
+                                            >
+                                                <Checkbox checked={selectedClasses.includes(cls._id)} className="mr-2" />
+                                                {cls.name}
+                                            </CommandItem>
+                                        ))}
+                                        {classSearch && !classes.find(c => c.name.toLowerCase() === classSearch.toLowerCase()) && (
+                                            <CommandItem
+                                                value={`custom_${classSearch}`}
+                                                onSelect={() => {
+                                                    if (!classes.find(c => c._id === classSearch)) {
+                                                        setClasses([...classes, { _id: classSearch, name: classSearch }]);
+                                                    }
+                                                    toggleClass(classSearch)
+                                                    if (errors.classes) setErrors({ ...errors, classes: false })
+                                                    setClassSearch("")
+                                                }}
+                                                className="text-indigo-600 font-medium cursor-pointer"
+                                            >
+                                                <Plus className="mr-2 h-4 w-4" />
+                                                Use "{classSearch}"
+                                            </CommandItem>
+                                        )}
+                                    </CommandGroup>
+                                </CommandList>
+                            </Command>
                         </PopoverContent>
                     </Popover>
 
@@ -1053,10 +1134,10 @@ function CreateExamContent() {
                         </DialogContent>
                     </Dialog>
                 </div>
-            </header>
+            </header >
 
             {/* 3. MAIN EDITOR AREA (Fluid and Scrollable) */}
-            <main className="flex-1 overflow-hidden flex flex-col max-w-[1000px] mx-auto w-full px-6 pt-6 pb-6">
+            < main className="flex-1 overflow-hidden flex flex-col max-w-[1000px] mx-auto w-full px-6 pt-6 pb-6" >
                 <Tabs defaultValue="manual" value={aiMode} onValueChange={setAiMode} className="flex flex-col h-full w-full">
 
                     {/* Tabs Header - Pinned at top of main area */}
@@ -1388,7 +1469,7 @@ function CreateExamContent() {
                         </Card>
                     </TabsContent>
                 </Tabs>
-            </main>
+            </main >
             <ConfirmModal
                 open={confirmOpen}
                 onOpenChange={setConfirmOpen}
@@ -1397,7 +1478,7 @@ function CreateExamContent() {
                 onConfirm={confirmAction}
                 variant="destructive"
             />
-        </div>
+        </div >
     )
 }
 

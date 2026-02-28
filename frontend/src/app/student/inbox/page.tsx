@@ -231,6 +231,11 @@ export default function StudentInboxPage() {
                         ))
                     )}
                 </div>
+                {notifications.length > 0 && (
+                    <p className="text-center text-xs text-slate-400 mt-4">
+                        Read notifications older than 7 days are automatically hidden.
+                    </p>
+                )}
             </PageTransition>
 
             <Dialog open={detailOpen} onOpenChange={setDetailOpen}>

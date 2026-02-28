@@ -31,7 +31,10 @@ export default function ProfessorProfilePage() {
         office_hours: "",
         linkedin_url: "",
         academic_history: "",
-        research_interests: ""
+        research_interests: "",
+        department: "",
+        designation: "",
+        employee_id: ""
     })
 
     useEffect(() => {
@@ -67,7 +70,10 @@ export default function ProfessorProfilePage() {
                 office_hours: data.office_hours || "",
                 linkedin_url: data.linkedin_url || "",
                 academic_history: data.academic_history || "",
-                research_interests: interests
+                research_interests: interests,
+                department: data.department || "",
+                designation: data.designation || "",
+                employee_id: data.employee_id || ""
             })
         } catch (e) {
             console.error(e)
@@ -90,7 +96,10 @@ export default function ProfessorProfilePage() {
                 research_interests: formData.research_interests.split(",").map(s => s.trim()).filter(Boolean),
                 office_hours: formData.office_hours,
                 linkedin_url: formData.linkedin_url,
-                academic_history: formData.academic_history
+                academic_history: formData.academic_history,
+                department: formData.department,
+                designation: formData.designation,
+                employee_id: formData.employee_id
             }
 
             setSaving(true)
@@ -149,6 +158,37 @@ export default function ProfessorProfilePage() {
                                     value={formData.full_name}
                                     onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                                     disabled={!isEditing}
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Department</Label>
+                                    <Input
+                                        value={formData.department}
+                                        onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                                        disabled={!isEditing}
+                                        placeholder="e.g. Computer Science"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Designation</Label>
+                                    <Input
+                                        value={formData.designation}
+                                        onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                                        disabled={!isEditing}
+                                        placeholder="e.g. Associate Professor"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Employee / Faculty ID</Label>
+                                <Input
+                                    value={formData.employee_id}
+                                    onChange={(e) => setFormData({ ...formData, employee_id: e.target.value })}
+                                    disabled={!isEditing}
+                                    placeholder="e.g. FAC-12345"
                                 />
                             </div>
 

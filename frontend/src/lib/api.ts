@@ -103,7 +103,16 @@ export async function downloadExamPdf(examId: string, token: string) {
     const res = await fetch(`${API_URL}/analytics/exams/${examId}/pdf-report`, {
         headers: { "Authorization": `Bearer ${token}` }
     });
-    if (!res.ok) throw new Error(`Failed to generate PDF`);
+    if (!res.ok) {
+        let errorMsg = "Failed to generate PDF";
+        try {
+            const errorData = await res.json();
+            errorMsg = errorData.detail || errorMsg;
+        } catch {
+            errorMsg = await res.text() || errorMsg;
+        }
+        throw new Error(`Failed to generate PDF: ${res.status} - ${errorMsg}`);
+    }
     const blob = await res.blob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -473,7 +482,10 @@ export async function fetchMyResult(examId: string, token: string) {
     const res = await fetch(`${API_URL}/exams/${examId}/my_result`, {
         headers: { "Authorization": `Bearer ${token}` }
     });
-    if (!res.ok) throw new Error("Failed to fetch result");
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to fetch result");
+    }
     return res.json();
 }
 // --- Notifications ---
@@ -627,6 +639,51 @@ export async function generateExam(subjectId: string, count: number, difficulty:
     if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.detail || "Failed to generate exam");
+    }
+    return res.json();
+}
+
+// --- Specific Subject ---
+export const fetchSubject = async (id: string, token: string) => {
+    const res = await fetch(`${API_URL}/subjects/${id}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+    })
+    if (!res.ok) throw new Error("Failed to fetch subject")
+    return res.json()
+}
+
+// --- Student Analytics ---
+
+export async function fetchStudentMastery(token: string) {
+    const res = await fetch(`${API_URL}/analytics/student/mastery`, {
+        cache: 'no-store',
+        headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error("Failed to fetch mastery data");
+    return res.json();
+}
+
+export async function fetchStudentFocusAreas(token: string) {
+    const res = await fetch(`${API_URL}/analytics/student/focus-areas`, {
+        cache: 'no-store',
+        headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error("Failed to fetch focus areas");
+    return res.json();
+}
+
+export async function generateStudentStudyPlan(data: { topic: string, struggle: string }, token: string) {
+    const res = await fetch(`${API_URL}/analytics/student/study-plan`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(err.detail || "Failed to generate study plan");
     }
     return res.json();
 }

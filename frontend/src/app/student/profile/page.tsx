@@ -5,19 +5,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { LogOut, User, Save, Edit2, School, BookOpen, Lock } from "lucide-react"
+import { LogOut, User, Save, Edit2, BookOpen, Lock } from "lucide-react"
 import { ChangePasswordDialog } from "@/components/ChangePasswordDialog"
 import { signOut, useSession } from "next-auth/react"
 import { useState, useEffect } from "react"
-import { joinClass, fetchUserProfile, updateUserProfile } from "@/lib/api"
+import { fetchUserProfile, updateUserProfile } from "@/lib/api"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { PageTransition } from "@/components/PageTransition"
 
 export default function StudentProfilePage() {
     const { data: session, status } = useSession()
-    const [classCode, setClassCode] = useState("")
-    const [joining, setJoining] = useState(false)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
@@ -28,11 +26,11 @@ export default function StudentProfilePage() {
     const [formData, setFormData] = useState({
         full_name: "",
         contact_number: "",
-        department: "",
+        degree: "",
         branch: "",
+        current_semester: "",
         institute_name: "",
-        linkedin_url: "",
-        academic_history: ""
+        linkedin_url: ""
     })
 
     useEffect(() => {
@@ -58,47 +56,17 @@ export default function StudentProfilePage() {
             setFormData({
                 full_name: data.full_name || "",
                 contact_number: data.contact_number || data.phone || "",
-                department: data.department || "",
+                degree: data.degree || "",
                 branch: data.branch || "",
+                current_semester: data.current_semester?.toString() || "",
                 institute_name: data.institute_name || "",
-                linkedin_url: data.linkedin_url || "",
-                academic_history: data.academic_history || ""
+                linkedin_url: data.linkedin_url || ""
             })
         } catch (e) {
             console.error(e)
             toast.error("Failed to load profile")
         } finally {
             setLoading(false)
-        }
-    }
-
-    const handleJoin = async () => {
-        // Mandatory Profile Check
-        const missingFields = []
-        if (!profile.contact_number) missingFields.push("Contact Number")
-        if (!profile.department) missingFields.push("Department")
-        if (!profile.branch) missingFields.push("Branch")
-        if (!profile.institute_name) missingFields.push("Institute Name")
-        if (!profile.academic_history) missingFields.push("Academic History")
-
-        if (missingFields.length > 0) {
-            toast.error(`Please complete your profile first! Missing: ${missingFields.join(", ")}`)
-            setIsEditing(true)
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-            return
-        }
-
-        if (!classCode || !session) return
-        const token = (session?.user as any)?.accessToken
-        setJoining(true)
-        try {
-            const res = await joinClass(classCode, token)
-            toast.success(res.message || "Request sent")
-            setClassCode("")
-        } catch (e: any) {
-            toast.error(e.message || "Failed to join")
-        } finally {
-            setJoining(false)
         }
     }
 
@@ -113,7 +81,8 @@ export default function StudentProfilePage() {
             }
 
             const payload = {
-                ...formData
+                ...formData,
+                current_semester: parseInt(formData.current_semester, 10) || null
             }
 
             setSaving(true)
@@ -201,18 +170,18 @@ export default function StudentProfilePage() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label>Department</Label>
+                                    <Label>Degree</Label>
                                     <Input
-                                        placeholder="e.g. Computer Science"
-                                        value={formData.department}
-                                        onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+                                        placeholder="e.g. B.Tech"
+                                        value={formData.degree}
+                                        onChange={(e) => setFormData({ ...formData, degree: e.target.value })}
                                         disabled={!isEditing}
                                     />
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Branch</Label>
                                     <Input
-                                        placeholder="e.g. B.Tech"
+                                        placeholder="e.g. Computer Science"
                                         value={formData.branch}
                                         onChange={(e) => setFormData({ ...formData, branch: e.target.value })}
                                         disabled={!isEditing}
@@ -220,23 +189,27 @@ export default function StudentProfilePage() {
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label>LinkedIn URL</Label>
-                                <Input
-                                    value={formData.linkedin_url}
-                                    onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
-                                    disabled={!isEditing}
-                                />
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>Academic History</Label>
-                                <Textarea
-                                    placeholder="Previous schools, degrees..."
-                                    value={formData.academic_history}
-                                    onChange={(e) => setFormData({ ...formData, academic_history: e.target.value })}
-                                    disabled={!isEditing}
-                                />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label>Current Semester</Label>
+                                    <Input
+                                        placeholder="e.g. 6"
+                                        type="number"
+                                        min="1"
+                                        max="20"
+                                        value={formData.current_semester}
+                                        onChange={(e) => setFormData({ ...formData, current_semester: e.target.value.replace(/\D/g, '') })}
+                                        disabled={!isEditing}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>LinkedIn URL</Label>
+                                    <Input
+                                        value={formData.linkedin_url}
+                                        onChange={(e) => setFormData({ ...formData, linkedin_url: e.target.value })}
+                                        disabled={!isEditing}
+                                    />
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -264,30 +237,6 @@ export default function StudentProfilePage() {
                             </div>
                             <Button variant="outline" className="w-full" onClick={() => setPasswordOpen(true)}>
                                 <Lock className="mr-2 h-4 w-4" /> Change Password
-                            </Button>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-base flex items-center gap-2">
-                                <School className="h-4 w-4 text-indigo-600" />
-                                Join a Class
-                            </CardTitle>
-                            <CardDescription>Enter code provided by professor.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-2">
-                            <div className="flex gap-2">
-                                <Input
-                                    placeholder="CODE123"
-                                    className="font-mono uppercase tracking-widest text-center text-lg"
-                                    maxLength={6}
-                                    value={classCode}
-                                    onChange={(e) => setClassCode(e.target.value.toUpperCase())}
-                                />
-                            </div>
-                            <Button onClick={handleJoin} disabled={joining} className="w-full bg-blue-600 hover:bg-blue-700">
-                                {joining ? "Joining..." : "Join Class"}
                             </Button>
                         </CardContent>
                     </Card>

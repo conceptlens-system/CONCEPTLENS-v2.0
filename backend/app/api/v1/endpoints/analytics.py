@@ -14,6 +14,147 @@ import json
 
 router = APIRouter()
 
+# --- STUDENT API ENDPOINTS ---
+
+@router.get("/student/mastery")
+async def get_student_mastery(current_user: dict = Depends(get_current_user)):
+    db = await get_database()
+    student_id = str(current_user["_id"])
+    
+    # Fetch all responses for this student
+    responses = await db.student_responses.find({"student_id": student_id}).to_list(10000)
+    
+    if not responses:
+        return {"data": []}
+        
+    # We need to map response.question_id -> topic
+    # For now, let's extract topics from the exams they took
+    exam_ids = list(set([r["assessment_id"] for r in responses]))
+    exams = await db.exams.find({"_id": {"$in": [ObjectId(eid) for eid in exam_ids if ObjectId.is_valid(eid)]}}).to_list(100)
+    
+    q_topic_map = {}
+    for exam in exams:
+        for q in exam.get("questions", []):
+            q_topic_map[str(q.get("id"))] = q.get("topic", "General")
+            
+    # Calculate performance per topic
+    topic_stats = defaultdict(lambda: {"correct": 0, "total": 0})
+    for r in responses:
+        topic = q_topic_map.get(str(r.get("question_id")), "General")
+        topic_stats[topic]["total"] += 1
+        if r.get("is_correct"):
+            topic_stats[topic]["correct"] += 1
+            
+    # Format for Recharts Radar
+    results = []
+    for topic, stats in topic_stats.items():
+        score = int((stats["correct"] / stats["total"]) * 100) if stats["total"] > 0 else 0
+        results.append({
+            "subject": topic[:15] + "..." if len(topic) > 15 else topic, # Shorten for radar
+            "full_name": topic,
+            "A": score,
+            "fullMark": 100
+        })
+        
+    # Sort and return top 6 most tested topics for the radar
+    results.sort(key=lambda x: topic_stats[x["full_name"]]["total"], reverse=True)
+    return {"data": results[:6]}
+
+@router.get("/student/focus-areas")
+async def get_student_focus_areas(current_user: dict = Depends(get_current_user)):
+    db = await get_database()
+    student_id = str(current_user["_id"])
+    
+    # A focus area is defined by questions they got wrong recently
+    # Ideally, we query the `misconceptions` collection, but those are grouped by Professor.
+    # To get personal student focus areas, we look at their wrong answers.
+    
+    pipeline = [
+        {"$match": {"student_id": student_id, "is_correct": False}},
+        {"$sort": {"submitted_at": -1}},
+        {"$limit": 50}, # Look at recent 50 mistakes
+        {"$group": {
+            "_id": "$question_id",
+            "wrong_count": {"$sum": 1},
+            "last_wrong_answer": {"$first": "$response_text"}
+        }}
+    ]
+    
+    recent_mistakes = await db.student_responses.aggregate(pipeline).to_list(20)
+    
+    if not recent_mistakes:
+        return {"data": []}
+        
+    # Map to topics and questions
+    q_ids = [m["_id"] for m in recent_mistakes]
+    # We have to search across exams to find these questions
+    exams = await db.exams.find({"questions.id": {"$in": q_ids}}).to_list(100)
+    
+    q_data_map = {}
+    for exam in exams:
+        subject_id = exam.get("subject_id")
+        for q in exam.get("questions", []):
+            if str(q.get("id")) in q_ids:
+                q_data_map[str(q.get("id"))] = {
+                    "topic": q.get("topic", "Unknown Concept"),
+                    "text": q.get("text", "Question text unavailable"),
+                    "subject_id": subject_id
+                }
+                
+    focus_areas = []
+    seen_topics = set()
+    
+    for m in recent_mistakes:
+        q_id = str(m["_id"])
+        q_data = q_data_map.get(q_id)
+        if not q_data: continue
+        
+        topic = q_data["topic"]
+        if topic in seen_topics: continue # One focus card per topic
+        seen_topics.add(topic)
+        
+        focus_areas.append({
+            "topic": topic,
+            "struggle": f"You answered '{m['last_wrong_answer']}' incorrectly.",
+            "urgency": "High" if m["wrong_count"] > 1 else "Medium",
+            "question_id": q_id,
+            "subject_id": str(q_data["subject_id"])
+        })
+        
+        if len(focus_areas) >= 3: # Keep it top 3
+            break
+            
+    return {"data": focus_areas}
+
+@router.post("/student/study-plan")
+async def generate_student_study_plan(payload: dict, current_user: dict = Depends(get_current_user)):
+    topic = payload.get("topic")
+    struggle = payload.get("struggle")
+    
+    if not topic:
+        raise HTTPException(status_code=400, detail="Topic required")
+        
+    genai.configure(api_key=settings.GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    prompt = f"""
+    You are an expert AI tutor. A university student is struggling with the concept of "{topic}".
+    Context of their recent error: {struggle}
+    
+    Provide a highly actionable, encouraging 3-step study plan to help them master this concept.
+    Use clear Markdown formatting with bullet points and bold text. Keep it concise (under 150 words total).
+    Do not include pleasantries, just jump straight into the 3 steps.
+    """
+    
+    try:
+        response = model.generate_content(prompt)
+        return {"plan": response.text}
+    except Exception as e:
+        print(f"GenAI Error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate study plan")
+
+# --- END STUDENT API ENDPOINTS ---
+
 @router.get("/misconceptions/grouped", response_model=List[dict])
 async def get_grouped_misconceptions(status: str = "valid", exam_id: str | None = None, current_user: dict = Depends(get_current_user)):
     db = await get_database()
@@ -852,7 +993,11 @@ async def generate_exam_pdf_report(exam_id: str, background_tasks: BackgroundTas
                     [
                        f"{m.get('student_count', 0)} Students", 
                        f"+{m.get('future_score_impact', 0.0)}%",
+<<<<<<< HEAD
                        m.get('status', 'Pending').capitalize()
+=======
+                       (m.get('status') or 'Pending').capitalize()
+>>>>>>> 5f13c1e (feat(student): Enhancements to student portal, analytics, onboarding, and curriculum visibility)
                     ]
                 ]
                 mt = Table(metrics_data, colWidths=[2.1*inch, 2.1*inch, 2.1*inch])

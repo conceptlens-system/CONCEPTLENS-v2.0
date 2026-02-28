@@ -237,7 +237,7 @@ async def publish_exam_results(exam_id: str, current_user: dict = Depends(get_cu
             "type": "RESULT_PUBLISHED",
             "title": "Exam Results Released",
             "message": f"Results for '{existing_exam['title']}' have been published. Check your marks now.",
-            "link": f"/student/exams/{exam_id}/result",
+            "link": f"/student/exam/{exam_id}/results",
             "is_read": False,
             "created_at": datetime.now(timezone.utc)
         }

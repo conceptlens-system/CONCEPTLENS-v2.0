@@ -56,6 +56,22 @@ async def approve_request(request_id: str):
     if req["status"] != "PENDING":
         raise HTTPException(status_code=400, detail=f"Request is {req['status']}")
         
+    # Handle new institution creation if requested
+    institution_id = req.get("institution_id")
+    if req.get("new_institution_name"):
+        new_inst = {
+            "name": req["new_institution_name"],
+            "type": "College", # Defaulting to College as per focus
+            "location": f"{req.get('city', '')}, {req.get('state', '')}".strip(", "),
+            "state": req.get("state"),
+            "city": req.get("city"),
+            "domains": [],
+            "subscription_status": "Active",
+            "joined_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+        }
+        inst_result = await db.institutions.insert_one(new_inst)
+        institution_id = str(inst_result.inserted_id)
+
     # Create User
     from app.core.security import get_password_hash
     # Generate random temp password or handle via email (mocking simple hash here)
@@ -67,9 +83,12 @@ async def approve_request(request_id: str):
         "full_name": req["full_name"],
         "hashed_password": get_password_hash("professor123"), # Default logic for now
         "role": "professor",
-        "institution_id": req["institution_id"],
-        "department": req["subject_expertise"], # Mapping expertise to department/subjects
+        "institution_id": institution_id,
+        "department": req.get("department", req.get("subject_expertise")), # Mapping expertise to department/subjects
         "subjects": [req["subject_expertise"]],
+        "designation": req.get("designation"),
+        "employee_id": req.get("employee_id"),
+        "linkedin_url": req.get("linkedin_url"),
         "auth_provider": "local",
         "is_active": True
     }
