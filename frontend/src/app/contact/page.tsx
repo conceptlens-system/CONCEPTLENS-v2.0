@@ -43,7 +43,7 @@ export default function ContactPage() {
             })
 
             if (res.ok) {
-                toast.success("Message sent successfully! We'll get back to you soon.")
+                toast.success("Thanks for contacting us. We will reach out with your issue within a few business days.")
                 setMessage("") // Clear message but keep name/email if logged in
             } else {
                 toast.error("Failed to send message.")

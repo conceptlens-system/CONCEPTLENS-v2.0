@@ -960,8 +960,6 @@ function ListIcon(props: any) {
             <line x1="3" x2="3.01" y1="12" y2="12" />
             <line x1="3" x2="3.01" y1="18" y2="18" />
         </svg>
-<<<<<<< HEAD
-=======
     )
 }
 
@@ -975,6 +973,5 @@ export default function MisconceptionsPage() {
         }>
             <MisconceptionsPageContent />
         </Suspense>
->>>>>>> 5f13c1e (feat(student): Enhancements to student portal, analytics, onboarding, and curriculum visibility)
     )
 }

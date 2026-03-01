@@ -8,6 +8,7 @@ from bson import ObjectId
 import google.generativeai as genai
 import json
 import random
+from datetime import datetime
 
 router = APIRouter()
 
@@ -182,6 +183,22 @@ async def generate_exam(request: ExamGenerationRequest, current_user: dict = Dep
                 "topic": q.get("topic"),
                 "unit": str(q.get("unit", ""))
             })
+            
+        # 4. Log the usage
+        try:
+            user_id = current_user.get("_id") or current_user.get("id")
+            await db["ai_usage_logs"].insert_one({
+                "timestamp": datetime.utcnow(),
+                "user_id": user_id,
+                "institution_id": current_user.get("institution_id"),
+                "subject_id": request.subject_id,
+                "questions_generated": len(formatted_questions),
+                "model": "gemini-flash-latest",
+                "difficulty_requested": request.difficulty
+            })
+        except Exception as log_error:
+            # We don't want to fail the actual request just because logging failed
+            print(f"Failed to log AI usage: {log_error}")
             
         return formatted_questions
 

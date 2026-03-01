@@ -1,7 +1,7 @@
 "use client"
 
 import { DashboardNavbar } from "@/components/DashboardNavbar"
-
+import GlobalAnnouncementBanner from "@/components/GlobalAnnouncementBanner"
 import { Footer } from "@/components/landing/Footer"
 
 export default function ProfessorLayout({ children }: { children: React.ReactNode }) {
@@ -20,6 +20,7 @@ export default function ProfessorLayout({ children }: { children: React.ReactNod
                 {children}
             </main>
             <Footer />
+            <GlobalAnnouncementBanner />
         </div>
     )
 }

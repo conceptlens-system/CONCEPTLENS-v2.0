@@ -123,33 +123,40 @@ async def create_professor(data: dict = Body(...)):
     return {"message": "Professor created"}
 
 @router.get("/", response_model=List[dict])
-async def list_professors():
+async def list_users(role: str = None):
     db = await get_database()
-    print("DEBUG: Fetching professors...")
-    cursor = db.users.find({"role": "professor"})
-    professors = await cursor.to_list(length=100)
-    print(f"DEBUG: Found {len(professors)} professors")
-    for p in professors:
-        p["_id"] = str(p["_id"])
-        print(f"DEBUG: Prof: {p.get('email')}")
-    return professors
+    query = {}
+    if role:
+        query["role"] = role
+    else:
+        # If no role specified, exclude admin by default or return all. Up to you. Let's return all.
+        pass
+        
+    cursor = db.users.find(query)
+    users = await cursor.to_list(length=100)
+    for u in users:
+        u["_id"] = str(u["_id"])
+        # Remove hashed password from response
+        if "hashed_password" in u:
+            del u["hashed_password"]
+    return users
 
-@router.delete("/{professor_id}")
-async def delete_professor(professor_id: str):
+@router.delete("/{user_id}")
+async def delete_user(user_id: str):
     db = await get_database()
     try:
-        oid = ObjectId(professor_id)
+        oid = ObjectId(user_id)
     except:
         raise HTTPException(status_code=400, detail="Invalid ID")
     
-    # Check if professor exists
-    prof = await db.users.find_one({"_id": oid, "role": "professor"})
-    if not prof:
-        raise HTTPException(status_code=404, detail="Professor not found")
+    # Check if user exists
+    user = await db.users.find_one({"_id": oid})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
 
     # Optional: Check for dependencies (classes, etc.)?
     # For now, just delete the user.
     
     result = await db.users.delete_one({"_id": oid})
     
-    return {"message": "Professor deleted"}
+    return {"message": "User deleted"}

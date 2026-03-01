@@ -528,13 +528,13 @@ export async function deleteNotification(id: string, token: string) {
 // --- Professor Onboarding (Admin) ---
 
 export async function fetchProfessorRequests() {
-    const res = await fetch(`${API_URL}/professors/requests`, { cache: 'no-store' });
+    const res = await fetch(`${API_URL}/users/requests`, { cache: 'no-store' });
     if (!res.ok) throw new Error("Failed to fetch requests");
     return res.json();
 }
 
 export async function approveProfessorRequest(id: string) {
-    const res = await fetch(`${API_URL}/professors/requests/${id}/approve`, {
+    const res = await fetch(`${API_URL}/users/requests/${id}/approve`, {
         method: "POST",
     });
     if (!res.ok) throw new Error("Failed to approve");
@@ -544,35 +544,54 @@ export async function approveProfessorRequest(id: string) {
 // --- Institutes & Onboarding ---
 
 export async function fetchInstitutes() {
-    const res = await fetch(`${API_URL}/institutes/`, { cache: 'no-store' });
+    const res = await fetch(`${API_URL}/institutions/`, { cache: 'no-store' });
     if (!res.ok) throw new Error("Failed to fetch institutes");
     return res.json();
 }
 
-export async function fetchProfessors() {
-    const res = await fetch(`${API_URL}/professors/`, { cache: 'no-store' });
-    if (!res.ok) throw new Error("Failed to fetch professors");
+export async function createInstitute(data: any) {
+    const res = await fetch(`${API_URL}/institutions/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("Failed to create institute");
     return res.json();
 }
 
-export async function createProfessor(data: any) {
-    const res = await fetch(`${API_URL}/professors/`, {
+export async function deleteInstitute(id: string) {
+    const res = await fetch(`${API_URL}/institutions/${id}`, {
+        method: "DELETE",
+    });
+    if (!res.ok) throw new Error("Failed to delete institute");
+    return res.json();
+}
+
+export async function fetchUsers(role?: string) {
+    const url = role ? `${API_URL}/users/?role=${role}` : `${API_URL}/users/`;
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error("Failed to fetch users");
+    return res.json();
+}
+
+export async function createUser(data: any) {
+    const res = await fetch(`${API_URL}/users/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
     });
     if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: res.statusText }));
-        throw new Error(err.detail || "Failed to create professor");
+        throw new Error(err.detail || "Failed to create user");
     }
     return res.json();
 }
 
-export async function deleteProfessor(id: string) {
-    const res = await fetch(`${API_URL}/professors/${id}`, {
+export async function deleteUser(id: string) {
+    const res = await fetch(`${API_URL}/users/${id}`, {
         method: "DELETE",
     });
-    if (!res.ok) throw new Error("Failed to delete professor");
+    if (!res.ok) throw new Error("Failed to delete user");
     return res.json();
 }
 
@@ -687,3 +706,148 @@ export async function generateStudentStudyPlan(data: { topic: string, struggle: 
     }
     return res.json();
 }
+
+// --- Admin Analytics & Settings ---
+
+export async function fetchAdminMetrics(token: string) {
+    const res = await fetch(`${API_URL}/admin-analytics/metrics`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error("Failed to fetch admin metrics");
+    return res.json();
+}
+
+export async function fetchGlobalSettings(token: string) {
+    const res = await fetch(`${API_URL}/settings/`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error("Failed to fetch global settings");
+    return res.json();
+}
+
+export async function updateGlobalSettings(token: string, data: any) {
+    const res = await fetch(`${API_URL}/settings/`, {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error("Failed to update global settings");
+    return res.json();
+}
+
+// --- Announcements & Audit Logs ---
+
+export async function fetchGlobalAnnouncements(token?: string, activeOnly: boolean = false) {
+    const url = `${API_URL}/announcements/?active_only=${activeOnly}`;
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error("Failed to fetch announcements");
+    return res.json();
+}
+
+export async function createGlobalAnnouncement(token: string, data: { title: string, message: string, type: string, active: boolean }) {
+    const res = await fetch(`${API_URL}/announcements/`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error("Failed to create announcement");
+    return res.json();
+}
+
+export async function toggleGlobalAnnouncement(token: string, id: string, active: boolean) {
+    const res = await fetch(`${API_URL}/announcements/${id}/toggle`, {
+        method: "PATCH",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ active })
+    });
+    if (!res.ok) throw new Error("Failed to toggle announcement");
+    return res.json();
+}
+
+export async function deleteGlobalAnnouncement(token: string, id: string) {
+    const res = await fetch(`${API_URL}/announcements/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error("Failed to delete announcement");
+    return res.json();
+}
+
+export async function fetchAuditLogs(token: string, limit: number = 100) {
+    const res = await fetch(`${API_URL}/audit-logs/?limit=${limit}`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error("Failed to fetch audit logs");
+    return res.json();
+}
+
+export async function fetchAiUsageMetrics(token: string, days: number = 30) {
+    const res = await fetch(`${API_URL}/ai-usage/metrics?days=${days}`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error("Failed to fetch AI usage metrics");
+    return res.json();
+}
+
+export async function fetchSecurityConfig(token: string) {
+    const res = await fetch(`${API_URL}/server/security`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error("Failed to fetch security config");
+    return res.json();
+}
+
+export async function updateSecurityConfig(token: string, payload: any) {
+    const res = await fetch(`${API_URL}/server/security`, {
+        method: 'PUT',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error("Failed to update security config");
+    return res.json();
+}
+
+export async function triggerDatabaseBackup(token: string) {
+    const res = await fetch(`${API_URL}/server/backup`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error("Failed to trigger database backup");
+
+    // Handle file download
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+
+    // Parse filename from headers if possible, otherwise use default
+    const disposition = res.headers.get('content-disposition');
+    let filename = 'conceptlens_backup.json';
+    if (disposition && disposition.indexOf('filename=') !== -1) {
+        filename = disposition.split('filename=')[1].replace(/"/g, '');
+    }
+
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+
+    return { success: true, message: "Backup downloaded successfully" };
+}
+

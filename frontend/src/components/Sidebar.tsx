@@ -43,7 +43,7 @@ export function Sidebar({ className, onLinkClick }: SidebarProps) {
     const adminLinks = [
         { href: "/admin", label: "Overview", icon: LayoutDashboard },
         { href: "/admin/institutions", label: "Institutions", icon: Building },
-        { href: "/admin/professors", label: "Professors", icon: Users },
+        { href: "/admin/users", label: "Users", icon: Users },
         { href: "/admin/analytics", label: "Analytics", icon: BarChart3 },
         { href: "/admin/settings", label: "Settings", icon: Settings },
     ]

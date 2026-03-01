@@ -65,8 +65,16 @@ export function LandingNavbar() {
             <div className="flex items-center gap-3">
                 {session ? (
                     <Button asChild className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white border-0 shadow-lg shadow-indigo-500/20">
-                        <Link href={(session.user as any)?.role === 'student' ? '/student' : '/professor'}>
-                            {(session.user as any)?.role === 'student' ? 'My Dashboard' : 'Professor Dashboard'}
+                        <Link href={
+                            (session.user as any)?.role === 'admin' ? '/admin' :
+                                (session.user as any)?.role === 'student' ? '/student' :
+                                    '/professor'
+                        }>
+                            {
+                                (session.user as any)?.role === 'admin' ? 'Admin Panel' :
+                                    (session.user as any)?.role === 'student' ? 'My Dashboard' :
+                                        'Professor Dashboard'
+                            }
                         </Link>
                     </Button>
                 ) : (

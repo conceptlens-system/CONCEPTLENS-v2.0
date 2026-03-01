@@ -993,11 +993,7 @@ async def generate_exam_pdf_report(exam_id: str, background_tasks: BackgroundTas
                     [
                        f"{m.get('student_count', 0)} Students", 
                        f"+{m.get('future_score_impact', 0.0)}%",
-<<<<<<< HEAD
-                       m.get('status', 'Pending').capitalize()
-=======
                        (m.get('status') or 'Pending').capitalize()
->>>>>>> 5f13c1e (feat(student): Enhancements to student portal, analytics, onboarding, and curriculum visibility)
                     ]
                 ]
                 mt = Table(metrics_data, colWidths=[2.1*inch, 2.1*inch, 2.1*inch])

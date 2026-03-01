@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import ingest, analytics, teacher, subjects, exams, auth, institutes, professors, classes, notifications, contact, syllabus, ai_exams
+from app.api.v1.endpoints import ingest, analytics, teacher, subjects, exams, auth, institutions, users, classes, notifications, contact, syllabus, ai_exams, admin_analytics, settings, announcements, audit_logs, ai_usage, server_admin
 
 api_router = APIRouter()
 
@@ -9,10 +9,16 @@ api_router.include_router(analytics.router, prefix="/analytics", tags=["analytic
 api_router.include_router(teacher.router, prefix="/teacher", tags=["teacher"])
 api_router.include_router(subjects.router, prefix="/subjects", tags=["subjects"])
 api_router.include_router(exams.router, prefix="/exams", tags=["exams"])
-api_router.include_router(institutes.router, prefix="/institutes", tags=["institutes"])
-api_router.include_router(professors.router, prefix="/professors", tags=["professors"])
+api_router.include_router(institutions.router, prefix="/institutions", tags=["institutions"])
+api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(classes.router, prefix="/classes", tags=["classes"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(contact.router, prefix="/contact", tags=["contact"])
 api_router.include_router(syllabus.router, prefix="/syllabus", tags=["syllabus"])
 api_router.include_router(ai_exams.router, prefix="/ai-exams", tags=["ai-exams"])
+api_router.include_router(admin_analytics.router, prefix="/admin-analytics", tags=["admin-analytics"])
+api_router.include_router(settings.router, prefix="/settings", tags=["settings"])
+api_router.include_router(announcements.router, prefix="/announcements", tags=["announcements"])
+api_router.include_router(audit_logs.router, prefix="/audit-logs", tags=["audit-logs"])
+api_router.include_router(ai_usage.router, prefix="/ai-usage", tags=["ai-usage"])
+api_router.include_router(server_admin.router, prefix="/server", tags=["server-admin"])

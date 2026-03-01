@@ -2,6 +2,7 @@
 
 import { DashboardNavbar } from "@/components/DashboardNavbar"
 import { Footer } from "@/components/landing/Footer"
+import GlobalAnnouncementBanner from "@/components/GlobalAnnouncementBanner"
 import { useSession } from "next-auth/react"
 import { useState, useEffect } from "react"
 import { fetchUserProfile } from "@/lib/api"
@@ -87,6 +88,8 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
             </main>
 
             {!isSetupPage && <Footer />}
+
+            <GlobalAnnouncementBanner />
         </div>
     )
 }
