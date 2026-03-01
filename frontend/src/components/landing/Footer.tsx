@@ -62,11 +62,11 @@ export function Footer() {
                         <ul className="space-y-4">
                             <li className="flex items-start gap-3 text-sm text-slate-600 dark:text-slate-400">
                                 <MapPin className="h-5 w-5 text-indigo-500 shrink-0" />
-                                <span>123 Innovation Drive,<br />Tech City, TC 90210</span>
+                                <span>Ahmedabad,<br />Gujarat, India</span>
                             </li>
                             <li className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                                 <Phone className="h-5 w-5 text-indigo-500 shrink-0" />
-                                <span>+1 (555) 123-4567</span>
+                                <span>+91 9173312623,<br />+91 9974439979</span>
                             </li>
                             <li className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                                 <Mail className="h-5 w-5 text-indigo-500 shrink-0" />

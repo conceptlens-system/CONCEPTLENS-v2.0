@@ -398,7 +398,8 @@ async def get_my_result(exam_id: str, current_user: dict = Depends(get_current_u
             "correct_answer": q.get("correct_answer"),
             "user_answer": response.get("response_text") if response else None,
             "is_correct": response.get("is_correct", False) if response else False,
-            "explanation": q.get("explanation")
+            "explanation": q.get("explanation"),
+            "topic": q.get("topic_id", "General")
         }
         detailed_questions.append(q_data)
             
@@ -408,5 +409,6 @@ async def get_my_result(exam_id: str, current_user: dict = Depends(get_current_u
         "correct_questions": correct_count,
         "total_questions": len(existing_exam.get("questions", [])),
         "responses_count": len(responses),
-        "questions": detailed_questions
+        "questions": detailed_questions,
+        "subject_id": existing_exam.get("subject_id")
     }

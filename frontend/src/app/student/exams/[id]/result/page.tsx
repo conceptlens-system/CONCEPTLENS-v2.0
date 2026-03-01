@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { PageTransition } from "@/components/PageTransition"
-import { Loader2, CheckCircle2, XCircle, ArrowLeft } from "lucide-react"
+import { Loader2, CheckCircle2, XCircle, ArrowLeft, BrainCircuit } from "lucide-react"
 
 export default function StudentExamResultPage() {
     const params = useParams()
@@ -106,7 +106,7 @@ export default function StudentExamResultPage() {
                                                         <div key={opt} className={`p-3 rounded-lg border text-sm flex items-center justify-between transition-colors ${style}`}>
                                                             <div className="flex items-center gap-3">
                                                                 <div className={`h-4 w-4 rounded-full border flex items-center justify-center ${isCorrect ? "border-green-600 bg-green-600" :
-                                                                        (isSelected ? "border-red-500 bg-red-500" : "border-slate-300")
+                                                                    (isSelected ? "border-red-500 bg-red-500" : "border-slate-300")
                                                                     }`}>
                                                                     {(isCorrect || isSelected) && <div className="h-2 w-2 bg-white rounded-full" />}
                                                                 </div>
@@ -142,6 +142,18 @@ export default function StudentExamResultPage() {
                                                     <span className="font-bold block mb-1">Explanation</span>
                                                     {q.explanation}
                                                 </div>
+                                            </div>
+                                        )}
+
+                                        {!q.is_correct && myResult?.subject_id && q.topic && (
+                                            <div className="mt-4 flex justify-end">
+                                                <Button
+                                                    onClick={() => router.push(`/student/practice?subject=${myResult.subject_id}&topic=${encodeURIComponent(q.topic)}`)}
+                                                    className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+                                                >
+                                                    <BrainCircuit className="w-4 h-4" />
+                                                    Practice this Topic
+                                                </Button>
                                             </div>
                                         )}
                                     </div>

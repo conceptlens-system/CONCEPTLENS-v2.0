@@ -851,3 +851,53 @@ export async function triggerDatabaseBackup(token: string) {
     return { success: true, message: "Backup downloaded successfully" };
 }
 
+// Gamification and Practice (Student Phase 1)
+export async function generatePracticeQuiz(subjectId: string, topic: string, token: string) {
+    const res = await fetch(`${API_URL}/practice/generate`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ subject_id: subjectId, topic, question_count: 5, difficulty: "Medium" })
+    });
+    if (!res.ok) throw new Error("Failed to generate practice quiz");
+    return res.json();
+}
+
+export async function submitPracticeResult(subjectId: string, topic: string, score: number, totalQuestions: number, difficulty: string, token: string) {
+    const res = await fetch(`${API_URL}/practice/submit`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ subject_id: subjectId, topic, score, total_questions: totalQuestions, difficulty })
+    });
+    if (!res.ok) throw new Error("Failed to submit practice result");
+    return res.json();
+}
+
+export async function fetchGlobalLeaderboard(token: string) {
+    const res = await fetch(`${API_URL}/leaderboard/global`, {
+        headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error("Failed to fetch global leaderboard");
+    return res.json();
+}
+
+export async function fetchClassLeaderboard(classId: string, token: string) {
+    const res = await fetch(`${API_URL}/leaderboard/class/${classId}`, {
+        headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error("Failed to fetch class leaderboard");
+    return res.json();
+}
+
+export async function fetchStudentCareerMapping(token: string) {
+    const res = await fetch(`${API_URL}/analytics/student/career-mapping`, {
+        headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error("Failed to fetch career mapping");
+    return res.json();
+}

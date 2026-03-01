@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Clock, AlertCircle, ChevronRight, CheckCircle2, PlayCircle, BookOpen, Settings, Bell } from "lucide-react"
 import { PageTransition } from "@/components/PageTransition"
+import { BrainCircuit, Trophy, Target } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { useEffect, useState } from "react"
 import { fetchExams, fetchClasses } from "@/lib/api"
@@ -17,7 +18,6 @@ import { StudentAnalytics } from "./StudentAnalytics"
 export default function StudentHomePage() {
     const { data: session, status } = useSession()
     const [exams, setExams] = useState<any[]>([])
-    const [classesCount, setClassesCount] = useState<number>(0)
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
@@ -31,12 +31,10 @@ export default function StudentHomePage() {
 
         const load = async () => {
             try {
-                const [examsData, classesData] = await Promise.all([
+                const [examsData] = await Promise.all([
                     fetchExams(token),
-                    fetchClasses(token).catch(() => []) // Catch if endpoint fails
                 ])
                 setExams(examsData)
-                setClassesCount(classesData.length)
             } catch (e) {
                 toast.error("Failed to load dashboard data")
             } finally {
@@ -63,8 +61,6 @@ export default function StudentHomePage() {
         return new Date(e.schedule_start) > now
     }).sort((a, b) => new Date(a.schedule_start).getTime() - new Date(b.schedule_start).getTime())
 
-    const completed = exams.filter(e => e.attempted)
-
     return (
         <PageTransition className="space-y-8 pb-12">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
@@ -72,61 +68,79 @@ export default function StudentHomePage() {
                     <h1 className="text-3xl font-bold text-slate-900">Student Command Center</h1>
                     <p className="text-slate-500 mt-2">Welcome back, {session?.user?.name}! Here's your learning overview.</p>
                 </div>
-                <div className="flex gap-2">
-                    <Button asChild variant="outline" className="bg-white hover:bg-slate-50">
-                        <Link href="/student/profile"><Settings className="w-4 h-4 mr-2" /> Settings</Link>
-                    </Button>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-3 mt-4">
+                {/* Left (1/3): Quick Links */}
+                <div className="md:col-span-1">
+                    <Card className="border-indigo-100 shadow-sm bg-gradient-to-b from-white to-indigo-50/30 h-full">
+                        <CardHeader className="pb-3 border-b border-indigo-50">
+                            <CardTitle className="text-md font-bold text-slate-800 flex items-center gap-2">
+                                <Bell className="w-4 h-4 text-indigo-500" /> Quick Links
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            <div className="flex flex-col">
+                                <Link href="/student/exams" className="px-4 py-3 border-b border-slate-100 flex items-center justify-between hover:bg-white transition-colors group">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-indigo-100 p-2 rounded-md group-hover:bg-indigo-500 transition-colors">
+                                            <BookOpen className="w-4 h-4 text-indigo-600 group-hover:text-white" />
+                                        </div>
+                                        <span className="font-medium text-slate-700">All Assessments</span>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-500" />
+                                </Link>
+                                <Link href="/student/classes" className="px-4 py-3 border-b border-slate-100 flex items-center justify-between hover:bg-white transition-colors group">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-emerald-100 p-2 rounded-md group-hover:bg-emerald-500 transition-colors">
+                                            <BookOpen className="w-4 h-4 text-emerald-600 group-hover:text-white" />
+                                        </div>
+                                        <span className="font-medium text-slate-700">My Classes</span>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-500" />
+                                </Link>
+                                <Link href="/student/practice" className="px-4 py-3 border-b border-slate-100 flex items-center justify-between hover:bg-white transition-colors group">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-fuchsia-100 p-2 rounded-md group-hover:bg-fuchsia-500 transition-colors">
+                                            <BrainCircuit className="w-4 h-4 text-fuchsia-600 group-hover:text-white" />
+                                        </div>
+                                        <span className="font-medium text-slate-700">Challenge Area</span>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-fuchsia-500" />
+                                </Link>
+                                <Link href="/student/leaderboard" className="px-4 py-3 border-b border-slate-100 flex items-center justify-between hover:bg-white transition-colors group">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-amber-100 p-2 rounded-md group-hover:bg-amber-500 transition-colors">
+                                            <Trophy className="w-4 h-4 text-amber-600 group-hover:text-white" />
+                                        </div>
+                                        <span className="font-medium text-slate-700">Leaderboard</span>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-amber-500" />
+                                </Link>
+                                <Link href="/student/career" className="px-4 py-3 border-b border-slate-100 flex items-center justify-between hover:bg-white transition-colors group">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-sky-100 p-2 rounded-md group-hover:bg-sky-500 transition-colors">
+                                            <Target className="w-4 h-4 text-sky-600 group-hover:text-white" />
+                                        </div>
+                                        <span className="font-medium text-slate-700">Career Map</span>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-sky-500" />
+                                </Link>
+                                <Link href="/student/inbox" className="px-4 py-3 flex items-center justify-between hover:bg-white transition-colors group">
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-rose-100 p-2 rounded-md group-hover:bg-rose-500 transition-colors">
+                                            <Bell className="w-4 h-4 text-rose-600 group-hover:text-white" />
+                                        </div>
+                                        <span className="font-medium text-slate-700">Inbox & Notifications</span>
+                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-rose-500" />
+                                </Link>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
-            </div>
 
-            {/* Quick Stats Row */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card className="bg-gradient-to-br from-indigo-500 to-indigo-600 text-white border-none shadow-md">
-                    <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-sm font-medium text-indigo-100">Action Required</CardTitle>
-                        <PlayCircle className="h-4 w-4 text-indigo-200" />
-                    </CardHeader>
-                    <CardContent>
-                        {loading ? <Skeleton className="h-8 w-12 bg-indigo-400/50" /> : <div className="text-3xl font-bold">{actionRequired.length}</div>}
-                    </CardContent>
-                </Card>
-
-                <Card className="bg-white border-slate-200 shadow-sm">
-                    <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-sm font-medium text-slate-500">Upcoming Exams</CardTitle>
-                        <Calendar className="h-4 w-4 text-slate-400" />
-                    </CardHeader>
-                    <CardContent>
-                        {loading ? <Skeleton className="h-8 w-12" /> : <div className="text-3xl font-bold text-slate-800">{upcoming.length}</div>}
-                    </CardContent>
-                </Card>
-
-                <Card className="bg-white border-slate-200 shadow-sm">
-                    <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-sm font-medium text-slate-500">Completed Assessments</CardTitle>
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    </CardHeader>
-                    <CardContent>
-                        {loading ? <Skeleton className="h-8 w-12" /> : <div className="text-3xl font-bold text-slate-800">{completed.length}</div>}
-                    </CardContent>
-                </Card>
-
-                <Card className="bg-white border-slate-200 shadow-sm">
-                    <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-                        <CardTitle className="text-sm font-medium text-slate-500">Enrolled Classes</CardTitle>
-                        <BookOpen className="h-4 w-4 text-blue-500" />
-                    </CardHeader>
-                    <CardContent>
-                        {loading ? <Skeleton className="h-8 w-12" /> : <div className="text-3xl font-bold text-slate-800">{classesCount}</div>}
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* AI Insights & Analytics */}
-            <StudentAnalytics />
-
-            <div className="grid gap-6 md:grid-cols-3">
-                {/* Left Column: Action Required & Upcoming Tasks */}
+                {/* Right (2/3): Action Required & Upcoming Schedule */}
                 <div className="md:col-span-2 space-y-6">
                     {/* Action Required Feed */}
                     <div>
@@ -229,63 +243,11 @@ export default function StudentHomePage() {
                         )}
                     </div>
                 </div>
+            </div>
 
-                {/* Right Column: Quick Links & Notifications */}
-                <div className="space-y-6">
-                    <Card className="bg-slate-900 border-none text-white shadow-lg relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
-                            <BookOpen className="w-24 h-24" />
-                        </div>
-                        <CardHeader className="relative z-10">
-                            <CardTitle className="text-lg font-bold text-white">Explore Classes</CardTitle>
-                            <CardDescription className="text-slate-300">Join new study groups or official classes using your join code.</CardDescription>
-                        </CardHeader>
-                        <CardContent className="relative z-10">
-                            <Button asChild className="w-full bg-white text-slate-900 hover:bg-slate-100 font-semibold border-none">
-                                <Link href="/student/classes">Browse & Join Classes</Link>
-                            </Button>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-indigo-100 shadow-sm bg-gradient-to-b from-white to-indigo-50/30">
-                        <CardHeader className="pb-3 border-b border-indigo-50">
-                            <CardTitle className="text-md font-bold text-slate-800 flex items-center gap-2">
-                                <Bell className="w-4 h-4 text-indigo-500" /> Quick Links
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-0">
-                            <div className="flex flex-col">
-                                <Link href="/student/exams" className="px-4 py-3 border-b border-slate-100 flex items-center justify-between hover:bg-white transition-colors group">
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-indigo-100 p-2 rounded-md group-hover:bg-indigo-500 transition-colors">
-                                            <BookOpen className="w-4 h-4 text-indigo-600 group-hover:text-white" />
-                                        </div>
-                                        <span className="font-medium text-slate-700">All Assessments</span>
-                                    </div>
-                                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-indigo-500" />
-                                </Link>
-                                <Link href="/student/classes" className="px-4 py-3 border-b border-slate-100 flex items-center justify-between hover:bg-white transition-colors group">
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-emerald-100 p-2 rounded-md group-hover:bg-emerald-500 transition-colors">
-                                            <BookOpen className="w-4 h-4 text-emerald-600 group-hover:text-white" />
-                                        </div>
-                                        <span className="font-medium text-slate-700">My Classes</span>
-                                    </div>
-                                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-500" />
-                                </Link>
-                                <Link href="/student/inbox" className="px-4 py-3 flex items-center justify-between hover:bg-white transition-colors group">
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-rose-100 p-2 rounded-md group-hover:bg-rose-500 transition-colors">
-                                            <Bell className="w-4 h-4 text-rose-600 group-hover:text-white" />
-                                        </div>
-                                        <span className="font-medium text-slate-700">Inbox & Notifications</span>
-                                    </div>
-                                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-rose-500" />
-                                </Link>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+            {/* AI Insights & Analytics */}
+            <div className="mt-8">
+                <StudentAnalytics />
             </div>
         </PageTransition>
     )

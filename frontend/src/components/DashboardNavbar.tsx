@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Activity, AlertCircle, BookOpen, CheckCircle2, Building, Users, User, GraduationCap, ClipboardList, BarChart3, LogOut, Mail, FileText, LayoutDashboard, Settings, Menu, X, Bell } from "lucide-react"
+import { Activity, AlertCircle, BookOpen, CheckCircle2, Building, Users, User, GraduationCap, ClipboardList, BarChart3, LogOut, Mail, FileText, LayoutDashboard, Settings, Menu, X, Bell, BrainCircuit, Trophy, Target } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
@@ -71,6 +71,9 @@ export function DashboardNavbar() {
     const studentLinks = [
         { href: "/student/classes", label: "My Classes", icon: BookOpen },
         { href: "/student/exams", label: "My Exams", icon: ClipboardList },
+        { href: "/student/practice", label: "Practice", icon: BrainCircuit },
+        { href: "/student/leaderboard", label: "Leaderboard", icon: Trophy },
+        { href: "/student/career", label: "Career Map", icon: Target },
     ]
 
     // ... (rest of the code untill Quick Actions)

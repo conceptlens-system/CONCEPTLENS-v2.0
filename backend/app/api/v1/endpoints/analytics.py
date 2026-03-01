@@ -153,6 +153,87 @@ async def generate_student_study_plan(payload: dict, current_user: dict = Depend
         print(f"GenAI Error: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate study plan")
 
+@router.get("/student/career-mapping")
+async def get_student_career_mapping(current_user: dict = Depends(get_current_user)):
+    db = await get_database()
+    student_id = str(current_user["_id"])
+    
+    # 1. Fetch student's mastery across topics
+    responses = await db.student_responses.find({"student_id": student_id}).to_list(10000)
+    if not responses:
+        return {"data": []}
+        
+    exam_ids = list(set([r["assessment_id"] for r in responses]))
+    exams = await db.exams.find({"_id": {"$in": [ObjectId(eid) for eid in exam_ids if ObjectId.is_valid(eid)]}}).to_list(100)
+    
+    q_topic_map = {}
+    for exam in exams:
+        for q in exam.get("questions", []):
+            q_topic_map[str(q.get("id"))] = q.get("topic", "General")
+            
+    topic_stats = defaultdict(lambda: {"correct": 0, "total": 0})
+    for r in responses:
+        topic = q_topic_map.get(str(r.get("question_id")), "General")
+        topic_stats[topic]["total"] += 1
+        if r.get("is_correct"):
+            topic_stats[topic]["correct"] += 1
+            
+    if not topic_stats:
+        return {"data": []}
+
+    mastered_topics = []
+    for topic, stats in topic_stats.items():
+        if stats["total"] > 2 and (stats["correct"] / stats["total"]) > 0.6:
+            mastered_topics.append(topic)
+            
+    if not mastered_topics:
+        # If no strict mastery, just take the ones they have the highest accuracy on
+        sorted_topics = sorted(topic_stats.items(), key=lambda item: (item[1]["correct"] / max(1, item[1]["total"])), reverse=True)
+        mastered_topics = [t[0] for t in sorted_topics[:5]]
+
+    # 2. Use Gemini to map these topics to job roles
+    genai.configure(api_key=settings.GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+    
+    prompt = f"""
+    You are an expert career counselor for IT and software engineering students.
+    A student has demonstrated strong proficiency in the following academic topics:
+    {", ".join(mastered_topics)}
+    
+    Map these skills to 3 potential real-world job roles.
+    For each role, provide:
+    1. The job title
+    2. A percentage match (0-100) based on how well their academic strengths align with the role.
+    3. A brief 1-sentence explanation of why they are a good fit based on the specific topics listed above.
+    4. A key skill they should focus on NEXT to improve their chances for this role.
+    
+    Format your response as a strict JSON array of objects.
+    Example:
+    [
+        {{"role": "Backend Developer", "match_percentage": 85, "reason": "Your strength in SQL Joins and Normalization perfectly aligns with backend data architecture.", "next_skill": "Learn an ORM framework like Prisma or Hibernate."}}
+    ]
+    """
+    
+    try:
+        response = model.generate_content(prompt)
+        response_text = response.text
+        
+        if "```json" in response_text:
+            response_text = response_text.split("```json")[1].split("```")[0]
+        elif "```" in response_text:
+            response_text = response_text.split("```")[1].split("```")[0]
+            
+        data = json.loads(response_text)
+        return {"data": data}
+        
+    except Exception as e:
+        print(f"GenAI Error for Career Mapping: {e}")
+        # Fallback if Gemini fails
+        fallback = [
+             {"role": "Software Engineer", "match_percentage": 75, "reason": "General proficiency across computer science concepts qualifies you for broad SE roles.", "next_skill": "Build a full-stack side project."}
+        ]
+        return {"data": fallback}
+
 # --- END STUDENT API ENDPOINTS ---
 
 @router.get("/misconceptions/grouped", response_model=List[dict])
