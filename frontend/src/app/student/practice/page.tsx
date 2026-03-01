@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { BrainCircuit, Trophy, Target, ArrowRight, Play, CheckCircle2, XCircle, ChevronRight, Award, Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import { fetchStudentFocusAreas, generatePracticeQuiz, submitPracticeResult } from "@/lib/api"
+import { fetchStudentFocusAreas, generatePracticeQuiz, submitPracticeResult, fetchPracticeHistory } from "@/lib/api"
 
 type ViewState = "dashboard" | "loading_quiz" | "quiz" | "results"
 
@@ -43,6 +43,13 @@ function PracticeContent() {
     const [pointsEarned, setPointsEarned] = useState(0)
     const [activeTopic, setActiveTopic] = useState<{ subject_id: string, topic: string } | null>(null)
 
+    // History & XP State
+    const [history, setHistory] = useState<any[]>([])
+    const [historyTotal, setHistoryTotal] = useState(0)
+    const [historyPage, setHistoryPage] = useState(1)
+    const [loadingHistory, setLoadingHistory] = useState(true)
+    const [userPoints, setUserPoints] = useState(0)
+
     useEffect(() => {
         if (status === "loading") return
         const token = (session?.user as any)?.accessToken
@@ -51,8 +58,8 @@ function PracticeContent() {
         // Auto-start practice if query params exist and we are strictly in the "dashboard" state (not already loading or practicing)
         if (initSubject && initTopic && view === "dashboard" && questions.length === 0) {
             startPractice(initSubject, initTopic)
-        } else if (view === "dashboard" && focusAreas.length === 0) {
-            const load = async () => {
+        } else if (view === "dashboard") {
+            const loadData = async () => {
                 try {
                     const faRes = await fetchStudentFocusAreas(token)
                     setFocusAreas(faRes.data || [])
@@ -61,10 +68,23 @@ function PracticeContent() {
                 } finally {
                     setLoadingAreas(false)
                 }
+
+                // Load History & Points
+                try {
+                    setLoadingHistory(true)
+                    const histRes = await fetchPracticeHistory(token, historyPage, 9)
+                    setHistory(histRes.history || [])
+                    setHistoryTotal(histRes.total || 0)
+                    setUserPoints(histRes.current_points || 0)
+                } catch (e) {
+                    console.error("Failed to load practice history", e)
+                } finally {
+                    setLoadingHistory(false)
+                }
             }
-            load()
+            loadData()
         }
-    }, [session, status, initSubject, initTopic, view, questions.length])
+    }, [session, status, initSubject, initTopic, view, questions.length, historyPage])
 
     const startPractice = async (subjectId: string, topic: string) => {
         const token = (session?.user as any)?.accessToken
@@ -127,8 +147,8 @@ function PracticeContent() {
     if (view === "dashboard") {
         return (
             <PageTransition className="space-y-8 pb-12">
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                    <div>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="flex-1">
                         <h1 className="text-3xl font-bold flex items-center gap-3 text-slate-900">
                             <div className="bg-indigo-100 p-2 rounded-xl text-indigo-600">
                                 <BrainCircuit className="w-8 h-8" />
@@ -137,16 +157,32 @@ function PracticeContent() {
                         </h1>
                         <p className="text-slate-500 mt-2 text-lg">Master your weak points with AI-generated practice quizzes.</p>
                     </div>
+
+                    <Card className="bg-gradient-to-br from-violet-600 to-indigo-700 text-white border-none shadow-xl overflow-hidden relative min-w-[280px]">
+                        <div className="absolute -right-6 -bottom-6 opacity-20 transform rotate-12">
+                            <Trophy className="w-24 h-24" />
+                        </div>
+                        <CardHeader className="relative z-10 py-3 px-6">
+                            <CardTitle className="text-xs font-bold text-white/70 uppercase tracking-widest">Total XP Earned</CardTitle>
+                        </CardHeader>
+                        <CardContent className="relative z-10 py-0 px-6 pb-4">
+                            <div className="text-4xl font-black drop-shadow-md flex items-end gap-2">
+                                {userPoints}
+                                <span className="text-xl text-indigo-300 font-bold mb-1">XP</span>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
 
-                <div className="grid md:grid-cols-3 gap-6">
-                    <div className="md:col-span-2 space-y-6">
+                <div className="space-y-8">
+                    {/* Targeted Areas */}
+                    <div className="space-y-6">
                         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2 mb-4">
                             <Target className="w-5 h-5 text-rose-500" /> Targeted Practice Areas
                         </h2>
 
                         {loadingAreas ? (
-                            <div className="space-y-4">
+                            <div className="grid md:grid-cols-2 gap-4">
                                 <Skeleton className="h-32 w-full rounded-xl" />
                                 <Skeleton className="h-32 w-full rounded-xl" />
                             </div>
@@ -156,29 +192,24 @@ function PracticeContent() {
                                     <BrainCircuit className="h-12 w-12 mb-4 text-emerald-400 opacity-50" />
                                     <p className="font-medium text-lg">No weaknesses detected!</p>
                                     <p className="text-sm text-slate-400 text-center max-w-sm mt-2">
-                                        You are currently doing great across all your subjects. Keep it up! Check back here if you start missing questions in your exams.
+                                        You're doing great across all subjects. Keep it up!
                                     </p>
                                 </CardContent>
                             </Card>
                         ) : (
-                            <div className="grid gap-4">
+                            <div className="grid md:grid-cols-2 gap-4">
                                 {focusAreas.map((area, idx) => (
                                     <Card key={idx} className="overflow-hidden border-slate-200 shadow-sm hover:shadow-md transition-all group border-l-4 border-l-rose-500">
-                                        <div className="p-6 flex flex-col sm:flex-row justify-between gap-6 items-start sm:items-center bg-white">
-                                            <div className="space-y-2 flex-1">
-                                                <div className="flex items-center gap-2">
-                                                    <Badge variant="secondary" className="bg-rose-100 text-rose-700 hover:bg-rose-200">Needs Focus</Badge>
-                                                    <span className="text-sm font-medium text-slate-400">Concept</span>
-                                                </div>
-                                                <h3 className="text-xl font-bold text-slate-900">{area.topic}</h3>
-                                                <p className="text-slate-500 text-sm line-clamp-2">{area.struggle}</p>
+                                        <div className="p-5 flex justify-between gap-4 items-center bg-white">
+                                            <div className="space-y-1 flex-1">
+                                                <h3 className="text-lg font-bold text-slate-900 truncate">{area.topic}</h3>
+                                                <p className="text-slate-500 text-xs line-clamp-1">{area.struggle}</p>
                                             </div>
                                             <Button
                                                 onClick={() => startPractice(area.subject_id, area.topic)}
-                                                className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-md hover:shadow-lg transition-all"
-                                                size="lg"
+                                                className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full h-10 w-10 p-0"
                                             >
-                                                <Play className="w-5 h-5 mr-2 fill-current" /> Initialize Training
+                                                <Play className="w-4 h-4 fill-current" />
                                             </Button>
                                         </div>
                                     </Card>
@@ -187,22 +218,109 @@ function PracticeContent() {
                         )}
                     </div>
 
-                    <div className="space-y-6">
-                        <Card className="bg-gradient-to-br from-violet-600 to-indigo-700 text-white border-none shadow-xl overflow-hidden relative">
-                            <div className="absolute -right-10 -bottom-10 opacity-20 transform rotate-12">
-                                <Trophy className="w-48 h-48" />
+                    {/* Practice History Grid */}
+                    <div className="space-y-6 pt-4">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                <Award className="w-5 h-5 text-indigo-500" /> Neural Training History
+                            </h2>
+                            <Badge variant="outline" className="text-slate-500 border-slate-200">
+                                {historyTotal} Total Sessions
+                            </Badge>
+                        </div>
+
+                        {loadingHistory ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {[...Array(6)].map((_, i) => (
+                                    <Skeleton key={i} className="h-40 w-full rounded-2xl" />
+                                ))}
                             </div>
-                            <CardHeader className="relative z-10 pb-2">
-                                <CardTitle className="text-lg font-bold text-white/90 uppercase tracking-wider">Total XP Earned</CardTitle>
-                            </CardHeader>
-                            <CardContent className="relative z-10 pb-6">
-                                <div className="text-5xl font-black drop-shadow-md flex items-end gap-2">
-                                    {(session?.user as any)?.points || 0}
-                                    <span className="text-2xl text-indigo-300 font-bold mb-1">XP</span>
+                        ) : history.length === 0 ? (
+                            <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                                <p className="text-slate-400">No training history yet. Complete a practice quiz to see it here!</p>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {history.map((item, idx) => {
+                                        const date = new Date(item.timestamp).toLocaleDateString();
+                                        const isPassing = (item.score / item.total_questions) >= 0.6;
+                                        return (
+                                            <Card key={idx} className="rounded-2xl border-slate-200 hover:border-indigo-200 hover:shadow-lg transition-all overflow-hidden group">
+                                                <div className="p-0 flex flex-col h-full">
+                                                    <div className={`p-4 ${isPassing ? 'bg-emerald-50' : 'bg-rose-50'} border-b border-slate-100 flex justify-between items-start`}>
+                                                        <Badge className={isPassing ? 'bg-emerald-100 text-emerald-700 border-none' : 'bg-rose-100 text-rose-700 border-none'}>
+                                                            {Math.round((item.score / item.total_questions) * 100)}% Core Score
+                                                        </Badge>
+                                                        <span className="text-[10px] uppercase font-bold text-slate-400">{date}</span>
+                                                    </div>
+                                                    <div className="p-5 space-y-3 flex-1">
+                                                        <div>
+                                                            <div className="text-xs font-bold text-indigo-500 uppercase tracking-tighter mb-1">{item.subject_name || "General"}</div>
+                                                            <h3 className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors line-clamp-1">{item.topic}</h3>
+                                                        </div>
+                                                        <div className="flex items-center justify-between pt-2">
+                                                            <div className="flex gap-1">
+                                                                {[...Array(item.total_questions)].map((_, i) => (
+                                                                    <div key={i} className={`h-1.5 w-4 rounded-full ${i < item.score ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                                                                ))}
+                                                            </div>
+                                                            <span className="text-xs font-medium text-slate-500">{item.score}/{item.total_questions} Correct</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="px-5 pb-5 mt-auto">
+                                                        <Button
+                                                            variant="outline"
+                                                            className="w-full rounded-xl group-hover:bg-indigo-50 group-hover:text-indigo-600 group-hover:border-indigo-200 transition-all text-xs h-9"
+                                                            onClick={() => startPractice(item.subject_id, item.topic)}
+                                                        >
+                                                            Restart Scenario
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </Card>
+                                        );
+                                    })}
                                 </div>
-                                <p className="text-indigo-200 text-sm mt-2 font-medium">Earn XP by completing practice quizzes.</p>
-                            </CardContent>
-                        </Card>
+
+                                {/* Pagination */}
+                                {historyTotal > 9 && (
+                                    <div className="flex justify-center items-center gap-2 pt-6">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={historyPage === 1}
+                                            onClick={() => setHistoryPage(prev => prev - 1)}
+                                            className="rounded-full px-4"
+                                        >
+                                            Previous
+                                        </Button>
+                                        <div className="flex gap-1 px-4">
+                                            {[...Array(Math.ceil(historyTotal / 9))].map((_, i) => (
+                                                <Button
+                                                    key={i}
+                                                    variant={historyPage === i + 1 ? "default" : "ghost"}
+                                                    size="sm"
+                                                    onClick={() => setHistoryPage(i + 1)}
+                                                    className="w-8 h-8 p-0 rounded-full"
+                                                >
+                                                    {i + 1}
+                                                </Button>
+                                            ))}
+                                        </div>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={historyPage >= Math.ceil(historyTotal / 9)}
+                                            onClick={() => setHistoryPage(prev => prev + 1)}
+                                            className="rounded-full px-4"
+                                        >
+                                            Next
+                                        </Button>
+                                    </div>
+                                )}
+                            </>
+                        )}
                     </div>
                 </div>
             </PageTransition>
@@ -352,6 +470,10 @@ function PracticeContent() {
                     <Button onClick={() => {
                         router.replace("/student/practice")
                         setViewState("dashboard")
+                        // Reset quiz state
+                        setQuestions([])
+                        setCurrentQIndex(0)
+                        setSelectedAnswers({})
                     }} className="mt-8 rounded-full" variant="outline" size="lg">
                         Return to Dashboard
                     </Button>

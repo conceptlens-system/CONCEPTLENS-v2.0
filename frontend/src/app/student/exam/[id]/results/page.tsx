@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle2, XCircle, ArrowLeft, Loader2, Trophy, ArrowRight } from "lucide-react"
+import { CheckCircle2, XCircle, ArrowLeft, Loader2, Trophy, ArrowRight, BrainCircuit } from "lucide-react"
 import { fetchMyResult } from "@/lib/api"
 import { toast } from "sonner"
 import { PageTransition } from "@/components/PageTransition"
@@ -103,11 +103,28 @@ export default function StudentExamResultPage() {
                     <p className="text-slate-500 mt-2">Detailed breakdown of your performance.</p>
                 </div>
 
-                <Button asChild variant="outline" className="hidden sm:flex border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800">
-                    <Link href="/student">
-                        Command Center <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                </Button>
+                {(() => {
+                    const firstWrongTopic = resultSummary?.questions?.find((q: any) => !q.is_correct && q.topic)?.topic;
+                    const subjectId = resultSummary?.subject_id;
+
+                    if (firstWrongTopic && subjectId) {
+                        return (
+                            <Button asChild className="hidden sm:flex bg-indigo-600 hover:bg-indigo-700 text-white gap-2 shadow-sm">
+                                <Link href={`/student/practice?subject=${subjectId}&topic=${encodeURIComponent(firstWrongTopic)}`}>
+                                    <BrainCircuit className="w-4 h-4" /> Practice Weak Topic
+                                </Link>
+                            </Button>
+                        );
+                    }
+
+                    return (
+                        <Button asChild variant="outline" className="hidden sm:flex border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:text-indigo-800">
+                            <Link href="/student">
+                                Command Center <ArrowRight className="ml-2 h-4 w-4" />
+                            </Link>
+                        </Button>
+                    );
+                })()}
             </div>
 
             {/* Score Summary Card */}
@@ -184,8 +201,22 @@ export default function StudentExamResultPage() {
 
                                 {question.explanation && (
                                     <div className="mt-4 p-3 bg-indigo-50/50 rounded-md border border-indigo-100 text-sm text-indigo-900">
-                                        <span className="font-semibold text-indigo-700">Explanation: </span>
-                                        {question.explanation}
+                                        <div className="flex justify-between items-start gap-4">
+                                            <div>
+                                                <span className="font-semibold text-indigo-700">Explanation: </span>
+                                                {question.explanation}
+                                            </div>
+                                            {resultSummary.subject_id && question.topic && (
+                                                <Button
+                                                    size="sm"
+                                                    className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 h-8 text-xs"
+                                                    onClick={() => router.push(`/student/practice?subject=${resultSummary.subject_id}&topic=${encodeURIComponent(question.topic)}`)}
+                                                >
+                                                    <BrainCircuit className="w-3.5 h-3.5" />
+                                                    Practice Topic
+                                                </Button>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </CardContent>

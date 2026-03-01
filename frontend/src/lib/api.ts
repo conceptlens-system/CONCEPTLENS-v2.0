@@ -902,3 +902,12 @@ export async function fetchStudentCareerMapping(token: string) {
     if (!res.ok) throw new Error("Failed to fetch career mapping");
     return res.json();
 }
+
+export async function fetchPracticeHistory(token: string, page: number = 1, limit: number = 9) {
+    const res = await fetch(`${API_URL}/practice/history?page=${page}&limit=${limit}`, {
+        cache: 'no-store',
+        headers: { "Authorization": `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error("Failed to fetch practice history");
+    return res.json();
+}

@@ -168,3 +168,72 @@ async def submit_practice(submission: PracticeSubmission, current_user: dict = D
     except Exception as e:
         print(f"Error saving practice result: {e}")
         raise HTTPException(status_code=500, detail="Failed to save practice result")
+
+@router.get("/history")
+async def get_practice_history(
+    page: int = 1, 
+    limit: int = 9, 
+    current_user: dict = Depends(get_current_user)
+):
+    """Fetch student practice history with pagination"""
+    try:
+        db = await get_database()
+        user_id = current_user.get("_id") or current_user.get("id")
+        uid_obj = ObjectId(user_id) if isinstance(user_id, str) else user_id
+        
+        # Calculate skip
+        skip = (page - 1) * limit
+        
+        # Pipeline for history with subject names
+        pipeline = [
+            {"$match": {"user_id": uid_obj}},
+            {"$sort": {"timestamp": 1}}, # Oldest to Latest as requested
+            {"$skip": skip},
+            {"$limit": limit},
+            {
+                "$lookup": {
+                    "from": "subjects",
+                    "localField": "subject_id",
+                    "foreignField": "_id",
+                    "as": "subject_data"
+                }
+            },
+            {
+                "$addFields": {
+                    "subject_name": {"$arrayElemAt": ["$subject_data.name", 0]}
+                }
+            },
+            {
+                "$project": {
+                    "subject_data": 0
+                }
+            }
+        ]
+        
+        results = await db["practice_results"].aggregate(pipeline).to_list(limit)
+        
+        # Format for JSON
+        formatted_results = []
+        for r in results:
+            r["_id"] = str(r["_id"])
+            r["user_id"] = str(r["user_id"])
+            r["subject_id"] = str(r["subject_id"])
+            if "timestamp" in r:
+                ts = r.get("timestamp")
+                r["timestamp"] = ts.isoformat() if hasattr(ts, "isoformat") else ts
+            formatted_results.append(r)
+        
+        total_count = await db["practice_results"].count_documents({"user_id": uid_obj})
+        
+        # Get current points
+        user = await db["users"].find_one({"_id": uid_obj})
+        current_points = user.get("points", 0) if user else 0
+        
+        return {
+            "history": formatted_results,
+            "total": total_count,
+            "current_points": current_points
+        }
+    except Exception as e:
+        print(f"Error fetching practice history: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch practice history")
