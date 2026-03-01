@@ -480,6 +480,7 @@ export async function fetchAnnouncements(classId: string, token: string) {
 
 export async function fetchMyResult(examId: string, token: string) {
     const res = await fetch(`${API_URL}/exams/${examId}/my_result`, {
+        cache: 'no-store',
         headers: { "Authorization": `Bearer ${token}` }
     });
     if (!res.ok) {
